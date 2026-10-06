@@ -1,0 +1,443 @@
+{% extends 'base.html' %}
+
+{% block title %}LogiTrack &bull; Dispatch Barcode Scanner{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <!-- Header Bar -->
+  <div class="rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-6 shadow-[var(--shadow)]">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div>
+        <div class="flex items-center gap-3">
+          <p class="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">Dispatch Operations</p>
+          <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+            <span class="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+            Real-Time Ingestion
+          </span>
+        </div>
+        <h1 class="mt-2 text-2xl font-black uppercase tracking-[-0.04em]">Continuous Barcode &amp; QR Scanner</h1>
+        <p class="mt-1 text-xs text-[var(--muted)]">Scan 1D Code 128 parcel labels or 2D QR codes continuously using device camera.</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="{% url 'shipments_list' %}" class="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+          Back to Shipments
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Scanner & Batch Workspace -->
+  <div class="grid gap-6 lg:grid-cols-12">
+    <!-- Viewfinder & Camera Controls (7 Cols) -->
+    <div class="space-y-6 lg:col-span-7">
+      <div class="rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-6 shadow-[var(--shadow)]">
+        <div class="flex items-center justify-between pb-4 border-b border-[var(--line)]">
+          <h2 class="text-base font-bold uppercase tracking-wider text-zinc-900">Camera Viewfinder</h2>
+          <span id="scanner_status" class="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+            Camera Idle
+          </span>
+        </div>
+
+        <!-- Video Reader Element -->
+        <div class="mt-4 overflow-hidden rounded-2xl bg-zinc-950 shadow-inner relative min-h-[300px] flex items-center justify-center">
+          <div id="reader" class="w-full"></div>
+          <div id="scanner_placeholder" class="text-center p-8 text-zinc-400">
+            <svg class="mx-auto h-12 w-12 text-zinc-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <p class="text-sm font-medium text-zinc-300">Camera stream inactive</p>
+            <p class="text-xs text-zinc-500 mt-1">Click "Start Scanner" below to initialize device camera</p>
+          </div>
+        </div>
+
+        <!-- Camera Controls -->
+        <div class="mt-4 flex flex-wrap items-center gap-3">
+          <button type="button" id="btn_toggle_scanner" class="rounded-full bg-brand-600 px-5 py-2 text-sm font-bold text-white shadow-sm hover:bg-brand-500 transition">
+            Start Scanner
+          </button>
+          <select id="camera_select" class="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-xs font-medium text-zinc-800 outline-none">
+            <option value="">Select Camera Device</option>
+          </select>
+          <label class="flex items-center gap-2 text-xs text-zinc-600 cursor-pointer ml-auto">
+            <input type="checkbox" id="audio_beep" checked class="rounded text-brand-600 focus:ring-brand-500" />
+            <span>Audio Feedback (Beep)</span>
+          </label>
+        </div>
+
+        <!-- Manual Tracking ID Input fallback -->
+        <div class="mt-6 border-t border-[var(--line)] pt-4">
+          <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-600 mb-1">
+            Manual / Hardware Wedge Entry
+          </label>
+          <form id="form_manual_add" class="flex gap-2">
+            <input type="text" id="manual_input" placeholder="Type or scan tracking code..." class="flex-1 rounded-xl border border-zinc-300 bg-white px-3 py-2 font-mono text-sm uppercase text-zinc-900 outline-none focus:border-zinc-900" />
+            <button type="submit" class="rounded-xl bg-zinc-900 px-4 py-2 text-xs font-bold text-white hover:bg-zinc-800">
+              Add to Batch
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Batch Queue & Execution Console (5 Cols) -->
+    <div class="space-y-6 lg:col-span-5">
+      <div class="rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-6 shadow-[var(--shadow)]">
+        <div class="flex items-center justify-between border-b border-[var(--line)] pb-4">
+          <h2 class="text-base font-bold uppercase tracking-wider text-zinc-900">Batch Dispatch Queue</h2>
+          <span id="badge_count" class="rounded-full bg-brand-100 px-3 py-0.5 text-xs font-black text-brand-800">
+            0 Parcels
+          </span>
+        </div>
+
+        <!-- Dispatch Parameters -->
+        <div class="mt-4 space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-zinc-700 uppercase mb-1">Target Status *</label>
+            <select id="batch_status" class="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-900 outline-none focus:border-zinc-900">
+              {% for val, label in status_choices %}
+                <option value="{{ val }}" {% if val == 'out_for_delivery' %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-zinc-700 uppercase mb-1">Dispatch Location / Hub</label>
+            <div class="flex gap-2">
+              <input type="text" id="batch_location" placeholder="e.g. Hub 02 — South Loading Bay" class="flex-1 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none" />
+              <button type="button" id="btn_scanner_gps" class="shrink-0 rounded-xl border border-zinc-300 bg-zinc-100 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-200">
+                GPS
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-zinc-700 uppercase mb-1">Batch Note</label>
+            <input type="text" id="batch_note" placeholder="e.g. Loaded onto Delivery Van 08" class="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none" />
+          </div>
+        </div>
+
+        <!-- Scanned Items Live List -->
+        <div class="mt-6">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-zinc-500">Scanned Items</span>
+            <button type="button" id="btn_clear_batch" class="text-xs font-semibold text-rose-600 hover:text-rose-800 underline">
+              Clear All
+            </button>
+          </div>
+          <div id="batch_list" class="max-h-56 overflow-y-auto space-y-2 rounded-xl border border-zinc-200 bg-white p-3 min-h-[120px]">
+            <p id="empty_queue_msg" class="text-center text-xs text-zinc-400 py-8">
+              No parcels scanned yet. Aim camera at labels to scan.
+            </p>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="mt-6 pt-4 border-t border-[var(--line)]">
+          <button type="button" id="btn_commit_batch" disabled class="w-full rounded-full bg-brand-600 py-3 text-sm font-bold text-white shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-500">
+            Apply Batch Transition (0)
+          </button>
+        </div>
+
+        <!-- Real-time Result Notification -->
+        <div id="batch_results" class="mt-4 hidden rounded-2xl border p-4 text-xs"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Load html5-qrcode library -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  let html5QrCode = null;
+  let isScanning = false;
+  const scannedSet = new Set();
+  const scannedList = [];
+
+  const readerDiv = document.getElementById('reader');
+  const placeholderDiv = document.getElementById('scanner_placeholder');
+  const btnToggle = document.getElementById('btn_toggle_scanner');
+  const cameraSelect = document.getElementById('camera_select');
+  const statusBadge = document.getElementById('scanner_status');
+  const batchListContainer = document.getElementById('batch_list');
+  const emptyQueueMsg = document.getElementById('empty_queue_msg');
+  const badgeCount = document.getElementById('badge_count');
+  const btnCommit = document.getElementById('btn_commit_batch');
+  const btnClear = document.getElementById('btn_clear_batch');
+  const manualForm = document.getElementById('form_manual_add');
+  const manualInput = document.getElementById('manual_input');
+  const batchStatus = document.getElementById('batch_status');
+  const batchLocation = document.getElementById('batch_location');
+  const batchNote = document.getElementById('batch_note');
+  const batchResults = document.getElementById('batch_results');
+  const audioBeepCheck = document.getElementById('audio_beep');
+  const btnGPS = document.getElementById('btn_scanner_gps');
+
+  // Web Audio API beep synthesizer
+  function playBeep() {
+    if (!audioBeepCheck.checked) return;
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1850, audioCtx.currentTime); // Crisp scanner frequency
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.08);
+    } catch (e) {
+      // AudioContext policy fallback
+    }
+  }
+
+  // Populate cameras
+  if (typeof Html5Qrcode !== 'undefined') {
+    Html5Qrcode.getCameras().then(devices => {
+      if (devices && devices.length) {
+        cameraSelect.innerHTML = '';
+        devices.forEach((dev, idx) => {
+          const opt = document.createElement('option');
+          opt.value = dev.id;
+          opt.text = dev.label || `Camera ${idx + 1}`;
+          cameraSelect.appendChild(opt);
+        });
+      }
+    }).catch(err => {
+      console.warn("Camera lookup failed:", err);
+    });
+  }
+
+  function handleDetectedCode(decodedText) {
+    let cleanCode = decodedText.trim();
+    // Support parsing tracking URLs (extract tracking_number parameter)
+    if (cleanCode.includes('tracking_number=')) {
+      try {
+        const url = new URL(cleanCode, window.location.origin);
+        cleanCode = url.searchParams.get('tracking_number') || cleanCode;
+      } catch (e) {}
+    }
+    // Remove "LT - " prefixes if present
+    cleanCode = cleanCode.replace(/^LT\s*-\s*/i, '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
+    if (!cleanCode) return;
+
+    if (scannedSet.has(cleanCode)) {
+      // Flash existing element
+      const existing = document.getElementById('item_' + cleanCode);
+      if (existing) {
+        existing.classList.add('bg-amber-100');
+        setTimeout(() => existing.classList.remove('bg-amber-100'), 400);
+      }
+      return;
+    }
+
+    playBeep();
+    scannedSet.add(cleanCode);
+    scannedList.unshift({ code: cleanCode, time: new Date().toLocaleTimeString() });
+    renderBatch();
+  }
+
+  function renderBatch() {
+    badgeCount.textContent = `${scannedList.length} Parcels`;
+    btnCommit.textContent = `Apply Batch Transition (${scannedList.length})`;
+    btnCommit.disabled = scannedList.length === 0;
+
+    if (scannedList.length === 0) {
+      batchListContainer.innerHTML = '';
+      batchListContainer.appendChild(emptyQueueMsg);
+      return;
+    }
+
+    batchListContainer.innerHTML = '';
+    scannedList.forEach(item => {
+      const row = document.createElement('div');
+      row.id = 'item_' + item.code;
+      row.className = "flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs transition duration-150";
+      row.innerHTML = `
+        <div class="flex items-center gap-2">
+          <span class="font-mono font-bold text-zinc-900">${item.code}</span>
+          <span class="text-[10px] text-zinc-400">${item.time}</span>
+        </div>
+        <button type="button" class="text-zinc-400 hover:text-rose-600 font-bold p-1" data-remove="${item.code}">×</button>
+      `;
+      batchListContainer.appendChild(row);
+    });
+
+    // Wire remove buttons
+    batchListContainer.querySelectorAll('[data-remove]').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const code = this.getAttribute('data-remove');
+        scannedSet.delete(code);
+        const idx = scannedList.findIndex(x => x.code === code);
+        if (idx !== -1) scannedList.splice(idx, 1);
+        renderBatch();
+      });
+    });
+  }
+
+  // Toggle Scanner
+  btnToggle.addEventListener('click', function () {
+    if (isScanning) {
+      stopScanner();
+    } else {
+      startScanner();
+    }
+  });
+
+  function startScanner() {
+    if (!html5QrCode) {
+      html5QrCode = new Html5Qrcode("reader");
+    }
+
+    const cameraId = cameraSelect.value || { facingMode: "environment" };
+    placeholderDiv.classList.add('hidden');
+    statusBadge.textContent = "Scanner Active";
+    statusBadge.className = "text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200";
+
+    const config = {
+      fps: 15,
+      qrbox: { width: 320, height: 180 },
+      aspectRatio: 1.777,
+    };
+
+    html5QrCode.start(
+      cameraId,
+      config,
+      (decodedText) => handleDetectedCode(decodedText),
+      () => {} // Ignored frame errors
+    ).then(() => {
+      isScanning = true;
+      btnToggle.textContent = "Stop Scanner";
+      btnToggle.className = "rounded-full bg-rose-600 px-5 py-2 text-sm font-bold text-white shadow-sm hover:bg-rose-500 transition";
+    }).catch(err => {
+      statusBadge.textContent = "Camera Error";
+      statusBadge.className = "text-xs font-semibold text-rose-800 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200";
+      placeholderDiv.classList.remove('hidden');
+      alert("Unable to start camera: " + err);
+    });
+  }
+
+  function stopScanner() {
+    if (html5QrCode && isScanning) {
+      html5QrCode.stop().then(() => {
+        isScanning = false;
+        btnToggle.textContent = "Start Scanner";
+        btnToggle.className = "rounded-full bg-brand-600 px-5 py-2 text-sm font-bold text-white shadow-sm hover:bg-brand-500 transition";
+        statusBadge.textContent = "Camera Idle";
+        statusBadge.className = "text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200";
+        placeholderDiv.classList.remove('hidden');
+      });
+    }
+  }
+
+  // Manual entry
+  manualForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const val = manualInput.value;
+    if (val) {
+      handleDetectedCode(val);
+      manualInput.value = '';
+    }
+  });
+
+  // Clear batch
+  btnClear.addEventListener('click', function () {
+    scannedSet.clear();
+    scannedList.length = 0;
+    renderBatch();
+    batchResults.classList.add('hidden');
+  });
+
+  // GPS fix helper
+  btnGPS.addEventListener('click', function () {
+    if (!navigator.geolocation) return;
+    btnGPS.textContent = "...";
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        batchLocation.value = "GPS: " + pos.coords.latitude.toFixed(5) + ", " + pos.coords.longitude.toFixed(5);
+        btnGPS.textContent = "✓ Fixed";
+      },
+      () => {
+        btnGPS.textContent = "Failed";
+      }
+    );
+  });
+
+  // CSRF token helper
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  // Commit batch update
+  btnCommit.addEventListener('click', async function () {
+    if (scannedList.length === 0) return;
+    btnCommit.disabled = true;
+    btnCommit.textContent = "Processing batch...";
+
+    const payload = {
+      tracking_numbers: scannedList.map(x => x.code),
+      status: batchStatus.value,
+      location: batchLocation.value,
+      note: batchNote.value,
+    };
+
+    try {
+      const res = await fetch("{% url 'batch_update_api' %}", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      batchResults.classList.remove('hidden');
+      if (res.ok && data.success) {
+        batchResults.className = "mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs text-emerald-900";
+        let html = `<strong>✓ Batch Update Complete:</strong> ${data.updated_count} parcels updated to <em>${data.target_status}</em>.`;
+        if (data.failed && data.failed.length > 0) {
+          html += `<div class="mt-2 text-rose-800"><strong>${data.failed.length} Warnings/Errors:</strong><ul class="list-disc ml-4 mt-1">`;
+          data.failed.forEach(f => {
+            html += `<li>${f.tracking_number}: ${f.reason}</li>`;
+          });
+          html += `</ul></div>`;
+        }
+        batchResults.innerHTML = html;
+
+        // Clear scanned items upon success
+        scannedSet.clear();
+        scannedList.length = 0;
+        renderBatch();
+      } else {
+        batchResults.className = "mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-900";
+        batchResults.innerHTML = `<strong>Error:</strong> ${data.message || 'Batch update failed.'}`;
+      }
+    } catch (err) {
+      batchResults.classList.remove('hidden');
+      batchResults.className = "mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-900";
+      batchResults.innerHTML = `<strong>Network Error:</strong> ${err.message}`;
+    } finally {
+      btnCommit.disabled = scannedList.length === 0;
+      btnCommit.textContent = `Apply Batch Transition (${scannedList.length})`;
+    }
+  });
+});
+</script>
+{% endblock %}
