@@ -565,6 +565,15 @@ class ShipmentImportTests(TestCase):
         batch = ShipmentImportBatch.objects.get(business=self.business)
         queue_task.assert_called_once_with(batch.pk)
 
+        detail_response = self.client.get(reverse("shipment_import_detail", args=[batch.pk]))
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(detail_response, "Manifest review")
+        self.assertNotContains(detail_response, "Retry failed rows")
+
+        upload_response = self.client.get(reverse("shipment_import_create"))
+        self.assertEqual(upload_response.status_code, 200)
+        self.assertContains(upload_response, "Download template")
+
         template_response = self.client.get(reverse("shipment_import_template"))
         self.assertEqual(template_response.status_code, 200)
         self.assertIn(b"customer_reference,recipient_name,recipient_phone,origin,destination", template_response.content)

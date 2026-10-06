@@ -359,7 +359,7 @@ def shipment_import_detail(request, pk):
         elif (
             action == "retry_failed"
             and batch.status in {"completed_with_errors", "failed"}
-            and batch.rows.filter(status="failed").exists()
+            and batch.rows.filter(status__in=["failed", "pending"]).exists()
         ):
             with transaction.atomic():
                 batch.rows.filter(status="failed").update(status="pending", error_message="")
@@ -374,10 +374,11 @@ def shipment_import_detail(request, pk):
         return redirect("shipment_import_detail", pk=batch.pk)
 
     page_obj = Paginator(batch.rows.select_related("shipment"), 50).get_page(request.GET.get("page"))
+    retryable_rows = batch.rows.filter(status__in=["failed", "pending"]).count()
     return render(
         request,
         "shipments/import_detail.html",
-        {"batch": batch, "page_obj": page_obj},
+        {"batch": batch, "page_obj": page_obj, "retryable_rows": retryable_rows},
     )
 
 

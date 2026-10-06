@@ -22,6 +22,22 @@ LogiTrack is a premium shipment tracking platform for small delivery businesses.
    ```bash
    python manage.py runserver
    ```
+7. Start a Celery worker in another terminal for background jobs:
+   ```bash
+   celery -A logitrack worker --loglevel=info
+   ```
+
+### Bulk shipment intake
+
+Open **Shipments → Import CSV**, download the provided template, upload the
+completed manifest, review row-level validation, and confirm valid rows. Imports
+run through Celery and are limited to 5 MB and 5,000 data rows per file. Required
+columns are `recipient_name`, `recipient_phone`, `origin`, and `destination`;
+optional columns are `customer_reference`, `carrier`, `estimated_delivery`, and
+`description`. Use ISO date/time values for `estimated_delivery`. A non-empty
+`customer_reference` is unique within the business and serves as the import
+idempotency key. Invalid rows are excluded, and transiently failed rows can be
+retried from the import results page.
 
 ### Media storage
 

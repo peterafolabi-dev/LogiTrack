@@ -24,7 +24,7 @@
           <form method="post">{% csrf_token %}<input type="hidden" name="action" value="confirm" /><button type="submit" class="rounded-lg bg-zinc-900 px-4 py-2.5 text-xs font-semibold text-white hover:bg-zinc-800">Create {{ batch.valid_rows }} shipments</button></form>
         {% endif %}
         {% if batch.status == 'completed_with_errors' or batch.status == 'failed' %}
-          {% if batch.failed_rows %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="retry_failed" /><button type="submit" class="rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50">Retry failed rows</button></form>{% endif %}
+          {% if retryable_rows %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="retry_failed" /><button type="submit" class="rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50">Retry failed rows</button></form>{% endif %}
         {% endif %}
       </div>
     </div>
