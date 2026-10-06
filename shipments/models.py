@@ -1,3 +1,4 @@
+import decimal
 import secrets
 import string
 
@@ -183,6 +184,10 @@ class Shipment(models.Model):
 
     def clean(self):
         super().clean()
+        if self.delivery_lat is not None:
+            self.delivery_lat = round(decimal.Decimal(str(self.delivery_lat)), 6)
+        if self.delivery_lng is not None:
+            self.delivery_lng = round(decimal.Decimal(str(self.delivery_lng)), 6)
         if self.status not in dict(STATUS_CHOICES):
             raise ValidationError({"status": "Invalid status."})
 
@@ -221,6 +226,11 @@ class Shipment(models.Model):
 
         if status == "failed" and not failure_reason:
             failure_reason = "other"
+
+        if delivery_lat is not None:
+            delivery_lat = round(decimal.Decimal(str(delivery_lat)), 6)
+        if delivery_lng is not None:
+            delivery_lng = round(decimal.Decimal(str(delivery_lng)), 6)
 
         with transaction.atomic():
             self.status = status
