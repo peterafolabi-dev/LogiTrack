@@ -115,3 +115,4 @@ def queue_shipment_webhook(shipment_id: int, event_type: str):
         payload,
         shipment_id=shipment.id,
     )
+

@@ -44,3 +44,4 @@ def deliver_webhook_sync(url: str, secret: str, event_type: str, payload: dict, 
         allow_redirects=False,
     )
     return response.status_code, response.text[:2000]
+

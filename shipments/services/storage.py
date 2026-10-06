@@ -50,3 +50,4 @@ def get_presigned_url(field_file, expiration: int = 3600) -> str:
         return field_file.url
     except Exception:
         return ""
+
