@@ -116,9 +116,14 @@ else:
         },
     }
 
+IS_TESTING = "test" in sys.argv
+if IS_TESTING:
+    STORAGES["staticfiles"] = {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    }
+
 # Celery & Redis Configuration
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
-IS_TESTING = "test" in sys.argv
 
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
