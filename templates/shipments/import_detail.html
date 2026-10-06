@@ -6,7 +6,7 @@
   <header class="flex flex-col justify-between gap-4 border-b border-zinc-200 pb-5 sm:flex-row sm:items-end">
     <div>
       <p class="font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-400">Shipments / Intake / Import #{{ batch.pk }}</p>
-      <h1 class="mt-2 text-3xl font-semibold tracking-[-0.05em] text-zinc-950">Manifest review</h1>
+      <h1 class="mt-2 text-3xl font-semibold tracking-tighter text-zinc-950">Manifest review</h1>
       <p class="mt-1 text-xs text-zinc-500">Created {{ batch.created_at|date:'M d, Y H:i' }}</p>
     </div>
     <a href="{% url 'shipment_import_create' %}" class="rounded-lg border border-zinc-200 bg-white px-3.5 py-2.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50">New import</a>
@@ -40,7 +40,7 @@
     <header class="border-b border-zinc-100 px-5 py-4"><h2 class="text-sm font-semibold text-zinc-900">Row results</h2><p class="mt-1 text-xs text-zinc-500">Rows with validation errors will not be created.</p></header>
     {% if page_obj %}
       <div class="overflow-x-auto">
-        <table class="w-full min-w-[850px] text-left text-xs">
+        <table class="w-full min-w-212.5 text-left text-xs">
           <thead class="border-b border-zinc-200 bg-zinc-50 text-[9px] font-semibold uppercase tracking-wide text-zinc-400"><tr><th class="px-4 py-3">CSV row</th><th class="px-3 py-3">Customer reference</th><th class="px-3 py-3">Recipient</th><th class="px-3 py-3">Destination</th><th class="px-3 py-3">Status</th><th class="px-4 py-3">Result</th></tr></thead>
           <tbody class="divide-y divide-zinc-100">
             {% for row in page_obj %}

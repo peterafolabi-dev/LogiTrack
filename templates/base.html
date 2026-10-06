@@ -9,26 +9,26 @@
     <link rel="stylesheet" href="{% static 'css/animations.css' %}" />
     <script src="{% static 'js/app.js' %}" defer></script>
   </head>
-  <body class="min-h-screen bg-[var(--bg)] text-[var(--text)] antialiased">
+  <body class="min-h-screen bg-[var(--bg)] text-(--text) antialiased">
     <div class="route-pattern min-h-screen bg-[rgba(255,255,255,0.02)]">
       {% block site_header %}
       <header class="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
-        <nav class="rounded-3xl border border-[var(--line)] bg-[color:var(--panel)] backdrop-blur-sm shadow-[var(--shadow)]">
+        <nav class="rounded-3xl border border-(--line) bg-(--panel) backdrop-blur-sm shadow-(--shadow)">
           <div class="flex items-center justify-between px-4 py-3 sm:px-6">
-            <a href="{% url 'landing' %}" class="flex items-center gap-3 font-black uppercase tracking-[0.18em] text-[var(--text)]">
+            <a href="{% url 'landing' %}" class="flex items-center gap-3 font-black uppercase tracking-[0.18em] text-(--text)">
               <span class="flex h-10 w-10 items-center justify-center rounded-full bg-brand-600 text-lg text-white shadow-lg shadow-brand-600/30">L</span>
               <span class="text-sm">LogiTrack</span>
             </a>
             <div class="flex items-center gap-3 text-sm">
               {% if user.is_authenticated %}
-                <a href="{% url 'dashboard' %}" class="rounded-full border border-[var(--line)] px-3 py-1.5">Dashboard</a>
-                <a href="{% url 'shipments_list' %}" class="rounded-full border border-[var(--line)] px-3 py-1.5">Shipments</a>
+                <a href="{% url 'dashboard' %}" class="rounded-full border border-(--line) px-3 py-1.5">Dashboard</a>
+                <a href="{% url 'shipments_list' %}" class="rounded-full border border-(--line) px-3 py-1.5">Shipments</a>
                 <a href="{% url 'barcode_scanner' %}" class="rounded-full border border-brand-500 bg-brand-50 text-brand-800 px-3 py-1.5 font-semibold">Scanner</a>
-                <a href="{% url 'profile' %}" class="rounded-full border border-[var(--line)] px-3 py-1.5">Profile</a>
+                <a href="{% url 'profile' %}" class="rounded-full border border-(--line) px-3 py-1.5">Profile</a>
                 <a href="{% url 'logout' %}" class="rounded-full bg-brand-600 px-3 py-1.5 text-white">Log out</a>
               {% else %}
-                <a href="{% url 'public_tracking' %}" class="rounded-full border border-[var(--line)] px-3 py-1.5">Track</a>
-                <a href="{% url 'login' %}" class="rounded-full border border-[var(--line)] px-3 py-1.5">Log in</a>
+                <a href="{% url 'public_tracking' %}" class="rounded-full border border-(--line) px-3 py-1.5">Track</a>
+                <a href="{% url 'login' %}" class="rounded-full border border-(--line) px-3 py-1.5">Log in</a>
                 <a href="{% url 'signup' %}" class="rounded-full bg-brand-600 px-3 py-1.5 text-white">Sign up</a>
               {% endif %}
             </div>

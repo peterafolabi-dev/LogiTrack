@@ -6,7 +6,7 @@
   <header class="flex flex-col justify-between gap-3 border-b border-zinc-200 pb-5 sm:flex-row sm:items-end">
     <div>
       <p class="font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-400">Workspace / Configuration</p>
-      <h1 class="mt-2 text-3xl font-semibold tracking-[-0.05em] text-zinc-950">Settings</h1>
+      <h1 class="mt-2 text-3xl font-semibold tracking-tighter text-zinc-950">Settings</h1>
       <p class="mt-1 text-xs text-zinc-500">Manage your organization profile, fleet defaults, security, and integrations.</p>
     </div>
     <button type="button" data-copy-text="{{ organization_id }}" data-copy-label="🏢 Workspace: {{ organization_id }} ▢" class="inline-flex items-center gap-2 self-start rounded-full border border-zinc-200 bg-white px-3 py-2 font-mono text-[9px] font-medium uppercase tracking-wide text-zinc-600 transition duration-200 hover:border-zinc-300 hover:bg-zinc-50 sm:self-auto">
@@ -14,7 +14,7 @@
     </button>
   </header>
   <div class="grid gap-7 lg:grid-cols-[240px_minmax(0,1fr)]">
-    <nav class="flex gap-1 overflow-x-auto whitespace-nowrap pb-1 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:sticky lg:top-20 lg:block lg:h-fit lg:overflow-visible" aria-label="Settings sections">
+    <nav class="flex gap-1 overflow-x-auto whitespace-nowrap pb-1 scrollbar-none [-ms-overflow-style:none]  [&::-webkit-scrollbar]:hidden lg:sticky lg:top-20 lg:block lg:h-fit lg:overflow-visible" aria-label="Settings sections">
       <a href="?tab=general" class="flex shrink-0 items-center gap-2 rounded-lg border-l-2 px-3 py-2.5 text-xs {% if active_tab == 'general' %}border-zinc-900 bg-zinc-100 font-semibold text-zinc-900{% else %}border-transparent text-zinc-500 hover:bg-zinc-50{% endif %}"><span>🏢</span> General &amp; Organization</a>
       <a href="?tab=security" class="flex shrink-0 items-center gap-2 rounded-lg border-l-2 px-3 py-2.5 text-xs {% if active_tab == 'security' %}border-zinc-900 bg-zinc-100 font-semibold text-zinc-900{% else %}border-transparent text-zinc-500 hover:bg-zinc-50{% endif %}"><span>🔒</span> Security &amp; Access</a>
       <a href="?tab=api" class="flex shrink-0 items-center gap-2 rounded-lg border-l-2 px-3 py-2.5 text-xs {% if active_tab == 'api' %}border-zinc-900 bg-zinc-100 font-semibold text-zinc-900{% else %}border-transparent text-zinc-500 hover:bg-zinc-50{% endif %}"><span>⚡</span> API &amp; Webhooks</a>
