@@ -38,7 +38,12 @@
             {{ form.recipient_phone }}
             {% for error in form.recipient_phone.errors %}<p class="mt-1 text-[10px] text-rose-600">{{ error }}</p>{% endfor %}
           </div>
-          <p class="text-[10px] leading-4 text-zinc-400 sm:col-span-2">Recipient and phone are required for shipment records. Organization and email notifications are not collected by this workspace yet.</p>
+          <div class="sm:col-span-2">
+            <label for="{{ form.recipient_email.id_for_label }}" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">Recipient email for delivery choices <span class="font-normal normal-case text-zinc-400">(optional)</span></label>
+            {{ form.recipient_email }}
+            {% for error in form.recipient_email.errors %}<p class="mt-1 text-[10px] text-rose-600">{{ error }}</p>{% endfor %}
+          </div>
+          <p class="text-[10px] leading-4 text-zinc-400 sm:col-span-2">When provided, the recipient can submit drop-off instructions or request another delivery date from a secure link.</p>
         </div>
       </section>
 

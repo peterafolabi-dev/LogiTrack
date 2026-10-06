@@ -327,6 +327,8 @@ class DeliveryPreferenceRequest(models.Model):
         return f"Delivery preferences for {self.shipment.tracking_number}"
 
     def matches_token(self, token):
+        if not token or len(token) > 100:
+            return False
         candidate_digest = hashlib.sha256(token.encode("utf-8")).hexdigest()
         return secrets.compare_digest(self.token_digest, candidate_digest)
 

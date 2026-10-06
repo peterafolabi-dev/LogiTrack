@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 REQUIRED_HEADERS = {"recipient_name", "recipient_phone", "origin", "destination"}
 ALLOWED_HEADERS = REQUIRED_HEADERS | {
     "customer_reference",
+    "recipient_email",
     "carrier",
     "estimated_delivery",
     "description",
@@ -215,6 +216,7 @@ def process_shipment_import(batch_id):
                     customer_reference=reference,
                     recipient_name=payload["recipient_name"],
                     recipient_phone=payload["recipient_phone"],
+                    recipient_email=payload.get("recipient_email", ""),
                     origin=payload["origin"],
                     destination=payload["destination"],
                     carrier=payload.get("carrier") or "In-house fleet",

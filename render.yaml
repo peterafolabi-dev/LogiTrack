@@ -35,6 +35,22 @@ services:
         value: auto
       - key: AWS_S3_ENDPOINT_URL
         sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: EMAIL_BACKEND
+        value: django.core.mail.backends.smtp.EmailBackend
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: EMAIL_USE_TLS
+        value: "1"
+      - key: EMAIL_USE_SSL
+        value: "0"
 
   - type: worker
     name: logitrack-worker
@@ -91,6 +107,46 @@ services:
           type: web
           name: logitrack
           envVarKey: AWS_S3_ENDPOINT_URL
+      - key: PUBLIC_BASE_URL
+        fromService:
+          type: web
+          name: logitrack
+          envVarKey: PUBLIC_BASE_URL
+      - key: EMAIL_BACKEND
+        fromService:
+          type: web
+          name: logitrack
+          envVarKey: EMAIL_BACKEND
+      - key: EMAIL_HOST
+        fromService:
+          type: web
+          name: logitrack
+          envVarKey: EMAIL_HOST
+      - key: EMAIL_PORT
+        fromService:
+          type: web
+          name: logitrack
+          envVarKey: EMAIL_PORT
+      - key: EMAIL_HOST_USER
+        fromService:
+          type: web
+          name: logitrack
+          envVarKey: EMAIL_HOST_USER
+      - key: EMAIL_HOST_PASSWORD
+        fromService:
+          type: web
+          name: logitrack
+          envVarKey: EMAIL_HOST_PASSWORD
+      - key: EMAIL_USE_TLS
+        fromService:
+          type: web
+          name: logitrack
+          envVarKey: EMAIL_USE_TLS
+      - key: EMAIL_USE_SSL
+        fromService:
+          type: web
+          name: logitrack
+          envVarKey: EMAIL_USE_SSL
 
 databases:
   - name: logitrack-db

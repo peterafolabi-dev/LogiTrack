@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
+from django.utils import timezone
 
 from .models import FAILURE_REASON_CHOICES, Profile, Shipment, StatusUpdate
 
@@ -28,6 +29,7 @@ class ShipmentImportRowForm(forms.Form):
     customer_reference = forms.CharField(max_length=100, required=False, strip=True)
     recipient_name = forms.CharField(max_length=120, strip=True)
     recipient_phone = forms.CharField(max_length=30, strip=True)
+    recipient_email = forms.EmailField(max_length=254, required=False)
     origin = forms.CharField(max_length=160, strip=True)
     destination = forms.CharField(max_length=160, strip=True)
     carrier = forms.CharField(max_length=80, required=False, strip=True)
@@ -36,6 +38,36 @@ class ShipmentImportRowForm(forms.Form):
 
     def clean_carrier(self):
         return self.cleaned_data.get("carrier") or "In-house fleet"
+
+
+class DeliveryPreferenceForm(forms.Form):
+    delivery_instructions = forms.CharField(
+        label="Where should we leave the shipment?",
+        max_length=500,
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3, "autocomplete": "off"}),
+    )
+    requested_delivery_date = forms.DateField(
+        label="Request another delivery date",
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+
+    def clean_requested_delivery_date(self):
+        requested_date = self.cleaned_data.get("requested_delivery_date")
+        if requested_date:
+            today = timezone.localdate()
+            if requested_date <= today:
+                raise ValidationError("Choose a date after today.")
+            if requested_date > today + timezone.timedelta(days=30):
+                raise ValidationError("Choose a date within the next 30 days.")
+        return requested_date
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not cleaned_data.get("delivery_instructions") and not cleaned_data.get("requested_delivery_date"):
+            raise ValidationError("Add delivery instructions or request another delivery date.")
+        return cleaned_data
 
 
 class ProfileSettingsForm(forms.ModelForm):
@@ -155,6 +187,7 @@ class ShipmentForm(forms.ModelForm):
         fields = [
             "recipient_name",
             "recipient_phone",
+            "recipient_email",
             "origin",
             "destination",
             "carrier",

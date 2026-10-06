@@ -1,9 +1,14 @@
 import logging
+from urllib.parse import quote
+
 from celery import shared_task
+from django.conf import settings
+from django.core.mail import send_mail
+from django.urls import reverse
 from django.utils import timezone
 import requests
 
-from .models import Business, Shipment, WebhookDeliveryLog
+from .models import Business, DeliveryPreferenceRequest, Shipment, WebhookDeliveryLog
 from .services.webhooks import deliver_webhook_sync
 
 logger = logging.getLogger(__name__)
@@ -115,6 +120,57 @@ def queue_shipment_webhook(shipment_id: int, event_type: str):
         payload,
         shipment_id=shipment.id,
     )
+
+
+@shared_task(bind=True, max_retries=3)
+def send_delivery_preference_invitation(self, request_id, token):
+    try:
+        preference_request = DeliveryPreferenceRequest.objects.select_related("shipment").get(pk=request_id)
+    except DeliveryPreferenceRequest.DoesNotExist:
+        return "Delivery preference request not found"
+
+    if preference_request.sent_at:
+        return "Invitation already sent"
+    if preference_request.is_expired:
+        return "Delivery preference link expired"
+
+    shipment = preference_request.shipment
+    path = reverse(
+        "delivery_preferences",
+        kwargs={"public_id": preference_request.public_id, "token": quote(token, safe="")},
+    )
+    url = f"{settings.PUBLIC_BASE_URL.rstrip('/')}{path}"
+    subject = f"Delivery choices for shipment {shipment.tracking_number}"
+    message = (
+        f"Hello {shipment.recipient_name},\n\n"
+        f"Shipment {shipment.tracking_number} is out for delivery. You can add drop-off instructions "
+        f"or request another delivery date using this secure link:\n\n{url}\n\n"
+        "This link expires in seven days. A date change is a request for the delivery team to review.\n"
+    )
+
+    try:
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [shipment.recipient_email],
+            fail_silently=False,
+        )
+        preference_request.sent_at = timezone.now()
+        preference_request.notification_error = ""
+        preference_request.save(update_fields=["sent_at", "notification_error"])
+        return "Invitation sent"
+    except Exception as exc:
+        preference_request.notification_error = str(exc)[:2000]
+        preference_request.save(update_fields=["notification_error"])
+        if self.request.retries < len(RETRY_DELAYS):
+            raise self.retry(exc=exc, countdown=RETRY_DELAYS[self.request.retries])
+        logger.exception("Delivery preference email exhausted retries for request %s", request_id)
+        return "Invitation delivery failed"
+
+
+def queue_delivery_preference_invitation(request_id, token):
+    send_delivery_preference_invitation.delay(request_id, token)
 
 
 @shared_task(bind=True, max_retries=3)

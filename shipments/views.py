@@ -332,6 +332,7 @@ def shipment_import_template(request):
         "customer_reference",
         "recipient_name",
         "recipient_phone",
+        "recipient_email",
         "origin",
         "destination",
         "carrier",
