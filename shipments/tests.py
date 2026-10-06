@@ -1,8 +1,12 @@
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from .models import Shipment
+from .models import Shipment, ShipmentImportBatch
 
 
 class ShipmentWorkflowTests(TestCase):
@@ -529,5 +533,79 @@ class EnterpriseSupplyChainTests(TestCase):
         import json
         body = json.loads(resp.content)
         self.assertEqual(body["error"], "rate_limit_exceeded")
+
+
+class ShipmentImportTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username="importer",
+            email="importer@logitrack.test",
+            password="secure-pass-123",
+        )
+        self.business = self.user.profile.get_or_create_business()
+
+    def make_batch(self, content):
+        return ShipmentImportBatch.objects.create(
+            business=self.business,
+            user=self.user,
+            source_file=SimpleUploadedFile("manifest.csv", content.encode("utf-8"), content_type="text/csv"),
+        )
+
+    def test_upload_queues_background_validation_and_template_has_expected_headers(self):
+        self.client.force_login(self.user)
+        with patch("shipments.tasks.validate_shipment_import_task.delay") as queue_task:
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(
+                    reverse("shipment_import_create"),
+                    {"csv_file": SimpleUploadedFile("manifest.csv", b"recipient_name,recipient_phone,origin,destination\n")},
+                )
+
+        self.assertRedirects(response, reverse("shipment_import_detail", args=[1]))
+        batch = ShipmentImportBatch.objects.get(business=self.business)
+        queue_task.assert_called_once_with(batch.pk)
+
+        template_response = self.client.get(reverse("shipment_import_template"))
+        self.assertEqual(template_response.status_code, 200)
+        self.assertIn(b"customer_reference,recipient_name,recipient_phone,origin,destination", template_response.content)
+
+    def test_validation_reports_bad_rows_and_import_is_idempotent(self):
+        content = (
+            "customer_reference,recipient_name,recipient_phone,origin,destination,carrier,estimated_delivery,description\n"
+            "EXT-001,Jordan Lee,555-0100,Seattle,Denver,Northstar,2026-10-08 14:30,Fragile\n"
+            "EXT-001,Casey Rae,555-0101,Seattle,Boise,Northstar,,Duplicate reference\n"
+            "EXT-003,Alex Kim,555-0102,Seattle,,Northstar,,Missing destination\n"
+        )
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            batch = self.make_batch(content)
+            from .services.shipment_imports import process_shipment_import, validate_shipment_import
+
+            self.assertEqual(validate_shipment_import(batch.pk), "ready")
+            batch.refresh_from_db()
+            self.assertEqual(batch.total_rows, 3)
+            self.assertEqual(batch.valid_rows, 1)
+            self.assertEqual(batch.failed_rows, 2)
+            self.assertFalse(batch.source_file)
+            self.assertEqual(batch.rows.filter(status="invalid").count(), 2)
+
+            batch.status = "queued"
+            batch.save(update_fields=["status"])
+            self.assertEqual(process_shipment_import(batch.pk), "completed_with_errors")
+            batch.refresh_from_db()
+            self.assertEqual(batch.imported_rows, 1)
+            self.assertEqual(batch.rows.get(row_number=2).shipment.customer_reference, "EXT-001")
+
+            self.assertEqual(process_shipment_import(batch.pk), "completed_with_errors")
+            self.assertEqual(Shipment.objects.filter(business=self.business, customer_reference="EXT-001").count(), 1)
+
+    def test_import_detail_is_scoped_to_the_current_business(self):
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            batch = self.make_batch("recipient_name,recipient_phone,origin,destination\n")
+            other_user = get_user_model().objects.create_user(username="other-importer")
+            self.client.force_login(other_user)
+
+            response = self.client.get(reverse("shipment_import_detail", args=[batch.pk]))
+
+            self.assertEqual(response.status_code, 404)
 
 
