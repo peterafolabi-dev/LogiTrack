@@ -33,11 +33,29 @@ Open **Shipments → Import CSV**, download the provided template, upload the
 completed manifest, review row-level validation, and confirm valid rows. Imports
 run through Celery and are limited to 5 MB and 5,000 data rows per file. Required
 columns are `recipient_name`, `recipient_phone`, `origin`, and `destination`;
-optional columns are `customer_reference`, `carrier`, `estimated_delivery`, and
-`description`. Use ISO date/time values for `estimated_delivery`. A non-empty
+optional columns are `customer_reference`, `recipient_email`, `carrier`,
+`estimated_delivery`, and `description`. Use ISO date/time values for
+`estimated_delivery`. A non-empty
 `customer_reference` is unique within the business and serves as the import
 idempotency key. Invalid rows are excluded, and transiently failed rows can be
 retried from the import results page.
+
+### Recipient delivery choices
+
+Add a recipient email to a shipment or include `recipient_email` in an import.
+When dispatch moves that shipment to **Out for Delivery**, LogiTrack queues an
+email containing a one-time link to submit drop-off instructions or request a
+delivery date within the next 30 days. The link expires after seven days. Date
+changes remain requests for dispatch to review; they do not automatically change
+the shipment ETA. Submitted preferences appear on the tenant-scoped shipment
+detail page. Local development uses the console email backend by default.
+
+For production email, configure `PUBLIC_BASE_URL` to the public HTTPS origin,
+`EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend`, `EMAIL_HOST`,
+`EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, and the appropriate
+`EMAIL_USE_TLS` or `EMAIL_USE_SSL`. Configure these in Render for the web service;
+the blueprint shares them with the Celery worker. Without SMTP credentials,
+delivery invitations cannot reach recipients.
 
 ### Media storage
 

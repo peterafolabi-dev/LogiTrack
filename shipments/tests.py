@@ -426,6 +426,8 @@ class EnterpriseSupplyChainTests(TestCase):
         PUBLIC_BASE_URL="https://logitrack.example.test",
     )
     def test_preference_invitation_email_is_asynchronous_and_idempotent(self):
+        self.shipment_a.recipient_email = "recipient@example.test"
+        self.shipment_a.save(update_fields=["recipient_email"])
         token = secrets.token_urlsafe(32)
         request = DeliveryPreferenceRequest.objects.create(
             shipment=self.shipment_a,
@@ -671,14 +673,14 @@ class ShipmentImportTests(TestCase):
 
         template_response = self.client.get(reverse("shipment_import_template"))
         self.assertEqual(template_response.status_code, 200)
-        self.assertIn(b"customer_reference,recipient_name,recipient_phone,origin,destination", template_response.content)
+        self.assertIn(b"customer_reference,recipient_name,recipient_phone,recipient_email,origin,destination", template_response.content)
 
     def test_validation_reports_bad_rows_and_import_is_idempotent(self):
         content = (
-            "customer_reference,recipient_name,recipient_phone,origin,destination,carrier,estimated_delivery,description\n"
-            "EXT-001,Jordan Lee,555-0100,Seattle,Denver,Northstar,2026-10-08 14:30,Fragile\n"
-            "EXT-001,Casey Rae,555-0101,Seattle,Boise,Northstar,,Duplicate reference\n"
-            "EXT-003,Alex Kim,555-0102,Seattle,,Northstar,,Missing destination\n"
+            "customer_reference,recipient_name,recipient_phone,recipient_email,origin,destination,carrier,estimated_delivery,description\n"
+            "EXT-001,Jordan Lee,555-0100,jordan@example.test,Seattle,Denver,Northstar,2026-10-08 14:30,Fragile\n"
+            "EXT-001,Casey Rae,555-0101,casey@example.test,Seattle,Boise,Northstar,,Duplicate reference\n"
+            "EXT-003,Alex Kim,555-0102,alex@example.test,Seattle,,Northstar,,Missing destination\n"
         )
         with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
             batch = self.make_batch(content)
@@ -698,6 +700,7 @@ class ShipmentImportTests(TestCase):
             batch.refresh_from_db()
             self.assertEqual(batch.imported_rows, 1)
             self.assertEqual(batch.rows.get(row_number=2).shipment.customer_reference, "EXT-001")
+            self.assertEqual(batch.rows.get(row_number=2).shipment.recipient_email, "jordan@example.test")
 
             self.assertEqual(process_shipment_import(batch.pk), "completed_with_errors")
             self.assertEqual(Shipment.objects.filter(business=self.business, customer_reference="EXT-001").count(), 1)
