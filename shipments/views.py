@@ -1,4 +1,4 @@
-﻿import json
+import json
 import csv
 from urllib.parse import urlsplit
 
@@ -9,15 +9,18 @@ from django.contrib.auth.forms import PasswordChangeForm
 from django.core.exceptions import ValidationError
 from django import forms
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Count, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from django_ratelimit.decorators import ratelimit
 
 from .forms import ProfileSettingsForm, ShipmentForm, ShipmentStatusForm, SignUpForm
-from .models import Shipment, STATUS_CHOICES
+from .models import Business, Shipment, StatusUpdate, WebhookDeliveryLog, STATUS_CHOICES
+from .services.labels import generate_thermal_label_pdf
 
 
 def landing(request):
@@ -64,7 +67,8 @@ def logout_view(request):
 
 @login_required
 def dashboard(request):
-    queryset = Shipment.objects.filter(user=request.user)
+    business = request.user.profile.get_or_create_business()
+    queryset = Shipment.objects.filter(business=business)
     date_range = request.GET.get("range", "24h")
     if date_range == "today":
         queryset = queryset.filter(created_at__date=timezone.localdate())
@@ -83,7 +87,7 @@ def dashboard(request):
             "status_counts": status_counts,
             "latest_shipments": latest_shipments,
             "shipment_status_choices": STATUS_CHOICES,
-            "organization": getattr(getattr(request.user, "profile", None), "business_name", ""),
+            "organization": business.name,
             "date_range": date_range,
         },
     )
@@ -91,7 +95,8 @@ def dashboard(request):
 
 @login_required
 def shipments_list(request):
-    queryset = Shipment.objects.filter(user=request.user)
+    business = request.user.profile.get_or_create_business()
+    queryset = Shipment.objects.filter(business=business)
     query = request.GET.get("q", "").strip()
     status = request.GET.get("status", "").strip()
     carrier = request.GET.get("carrier", "").strip()
@@ -151,7 +156,7 @@ def shipments_list(request):
 
     status_counts = {
         entry["status"]: entry["total"]
-        for entry in Shipment.objects.filter(user=request.user).values("status").annotate(total=Count("id"))
+        for entry in Shipment.objects.filter(business=business).values("status").annotate(total=Count("id"))
     }
     paginator = Paginator(queryset.select_related("user"), 25)
     page_number = request.GET.get("page")
@@ -167,8 +172,8 @@ def shipments_list(request):
             "date_range": date_range,
             "status_counts": status_counts,
             "shipment_status_choices": STATUS_CHOICES,
-            "carriers": Shipment.objects.filter(user=request.user).values_list("carrier", flat=True).distinct().order_by("carrier"),
-            "total_count": Shipment.objects.filter(user=request.user).count(),
+            "carriers": Shipment.objects.filter(business=business).values_list("carrier", flat=True).distinct().order_by("carrier"),
+            "total_count": Shipment.objects.filter(business=business).count(),
         },
     )
 
@@ -176,6 +181,7 @@ def shipments_list(request):
 @login_required
 @require_POST
 def populate_demo_telemetry(request):
+    business = request.user.profile.get_or_create_business()
     samples = [
         ("pending", "Morgan Reed", "Seattle, WA", "Portland, OR", "In-house fleet"),
         ("picked_up", "Avery Chen", "San Francisco, CA", "Sacramento, CA", "FedEx"),
@@ -188,12 +194,14 @@ def populate_demo_telemetry(request):
     for status, recipient, origin, destination, carrier in samples:
         shipment = Shipment.objects.create(
             user=request.user,
+            business=business,
             recipient_name=recipient,
             recipient_phone="+1 555 010 2040",
             origin=origin,
             destination=destination,
             carrier=carrier,
             status=status,
+            failure_reason="gate_locked" if status == "failed" else "",
         )
         created_count += 1
     messages.success(request, f"{created_count} sample shipments added to your fleet.")
@@ -202,28 +210,56 @@ def populate_demo_telemetry(request):
 
 @login_required
 def shipment_detail(request, pk):
-    shipment = get_object_or_404(Shipment, pk=pk, user=request.user)
+    business = request.user.profile.get_or_create_business()
+    shipment = get_object_or_404(Shipment, pk=pk, business=business)
     status_form = ShipmentStatusForm(shipment)
+
     if request.method == "POST":
-        status_form = ShipmentStatusForm(shipment, request.POST)
+        status_form = ShipmentStatusForm(shipment, request.POST, request.FILES)
         if status_form.is_valid():
-            shipment.transition_to(
-                status_form.cleaned_data["status"],
-                location=status_form.cleaned_data.get("location", ""),
-                note=status_form.cleaned_data.get("note", ""),
-            )
-            messages.success(request, "Shipment status updated.")
-            return redirect("shipment_detail", pk=shipment.pk)
-    return render(request, "shipments/detail.html", {"shipment": shipment, "status_form": status_form})
+            try:
+                recipient_sig = status_form.get_signature_file()
+                delivery_photo = status_form.cleaned_data.get("delivery_photo")
+                delivery_lat = status_form.cleaned_data.get("delivery_lat")
+                delivery_lng = status_form.cleaned_data.get("delivery_lng")
+                delivery_pin = status_form.cleaned_data.get("delivery_pin")
+                failure_reason = status_form.cleaned_data.get("failure_reason", "")
+
+                shipment.transition_to(
+                    status_form.cleaned_data["status"],
+                    location=status_form.cleaned_data.get("location", ""),
+                    note=status_form.cleaned_data.get("note", ""),
+                    recipient_signature=recipient_sig,
+                    delivery_photo=delivery_photo,
+                    delivery_lat=delivery_lat,
+                    delivery_lng=delivery_lng,
+                    delivery_pin=delivery_pin,
+                    failure_reason=failure_reason,
+                )
+                messages.success(request, f"Shipment transition recorded successfully ({shipment.get_status_display()}).")
+                return redirect("shipment_detail", pk=shipment.pk)
+            except ValidationError as err:
+                status_form.add_error(None, err.message if hasattr(err, "message") else str(err))
+
+    return render(
+        request,
+        "shipments/detail.html",
+        {
+            "shipment": shipment,
+            "status_form": status_form,
+        },
+    )
 
 
 @login_required
 def shipment_edit(request, pk):
-    shipment = get_object_or_404(Shipment, pk=pk, user=request.user)
+    business = request.user.profile.get_or_create_business()
+    shipment = get_object_or_404(Shipment, pk=pk, business=business)
     if request.method == "POST":
         form = ShipmentForm(request.POST, instance=shipment)
         if form.is_valid():
             form.save()
+            messages.success(request, "Shipment details updated.")
             return redirect("shipment_detail", pk=shipment.pk)
     else:
         form = ShipmentForm(instance=shipment)
@@ -232,13 +268,15 @@ def shipment_edit(request, pk):
 
 @login_required
 def shipment_create(request):
+    business = request.user.profile.get_or_create_business()
     if request.method == "POST":
         form = ShipmentForm(request.POST)
         if form.is_valid():
             shipment = form.save(commit=False)
             shipment.user = request.user
+            shipment.business = business
             shipment.save()
-            messages.success(request, "Shipment created successfully.")
+            messages.success(request, f"Shipment created successfully. PIN: {shipment.delivery_pin_raw}")
             return redirect("shipment_detail", pk=shipment.pk)
     else:
         form = ShipmentForm()
@@ -246,8 +284,109 @@ def shipment_create(request):
 
 
 @login_required
+def shipment_label_pdf(request, pk):
+    """
+    Renders standard 4x6-inch thermal shipping label PDF.
+    """
+    business = request.user.profile.get_or_create_business()
+    shipment = get_object_or_404(Shipment, pk=pk, business=business)
+    public_url = request.build_absolute_uri(reverse("public_tracking")) + f"?tracking_number={shipment.tracking_number}"
+    
+    pdf_bytes = generate_thermal_label_pdf(shipment, public_url)
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    disposition = "attachment" if request.GET.get("download") else "inline"
+    response["Content-Disposition"] = f'{disposition}; filename="label-{shipment.tracking_number}.pdf"'
+    return response
+
+
+@login_required
+def barcode_scanner_view(request):
+    """
+    Dispatch scanner console for continuous camera barcode/QR scanning.
+    """
+    business = request.user.profile.get_or_create_business()
+    return render(
+        request,
+        "shipments/scanner.html",
+        {
+            "business": business,
+            "status_choices": [
+                ("in_transit", "In Transit"),
+                ("out_for_delivery", "Out For Delivery"),
+                ("picked_up", "Picked Up"),
+            ],
+        },
+    )
+
+
+@login_required
+@require_POST
+def batch_update_api(request):
+    """
+    Asynchronous batch dispatcher updating multiple scanned shipments simultaneously.
+    Strictly scoped to user's business tenant.
+    """
+    business = request.user.profile.get_or_create_business()
+    try:
+        payload = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "invalid_json", "message": "Malformed JSON payload."}, status=400)
+
+    tracking_numbers = payload.get("tracking_numbers", [])
+    target_status = payload.get("status")
+    location = payload.get("location", "").strip()
+    note = payload.get("note", "").strip()
+
+    if not tracking_numbers:
+        return JsonResponse({"error": "empty_batch", "message": "No tracking numbers provided."}, status=400)
+
+    if target_status not in dict(STATUS_CHOICES):
+        return JsonResponse({"error": "invalid_status", "message": f"Invalid status: {target_status}"}, status=400)
+
+    updated = []
+    failed = []
+
+    # Filter strictly by business tenant
+    shipments = Shipment.objects.filter(business=business, tracking_number__in=tracking_numbers)
+    found_numbers = {s.tracking_number for s in shipments}
+
+    for num in tracking_numbers:
+        if num not in found_numbers:
+            failed.append({"tracking_number": num, "reason": "Shipment not found in tenant fleet."})
+
+    for shipment in shipments:
+        if not shipment.can_transition(shipment.status, target_status):
+            failed.append({
+                "tracking_number": shipment.tracking_number,
+                "reason": f"Cannot transition from '{shipment.status}' to '{target_status}'.",
+            })
+            continue
+
+        try:
+            with transaction.atomic():
+                shipment.transition_to(
+                    target_status,
+                    location=location,
+                    note=note or f"Batch dispatched via scanner console.",
+                )
+            updated.append(shipment.tracking_number)
+        except Exception as exc:
+            failed.append({"tracking_number": shipment.tracking_number, "reason": str(exc)})
+
+    return JsonResponse({
+        "success": True,
+        "target_status": target_status,
+        "updated_count": len(updated),
+        "updated": updated,
+        "failed_count": len(failed),
+        "failed": failed,
+    })
+
+
+@login_required
 def profile_view(request):
     profile = request.user.profile
+    business = profile.get_or_create_business()
     active_tab = request.GET.get("tab", "general")
     if request.method == "POST":
         active_tab = request.POST.get("tab", "general")
@@ -262,6 +401,8 @@ def profile_view(request):
                 "active_tab": active_tab,
                 "settings_form": ProfileSettingsForm(instance=profile),
                 "password_form": password_form,
+                "business": business,
+                "webhook_logs": business.webhook_logs.all()[:15],
             })
         if active_tab == "api":
             try:
@@ -282,32 +423,60 @@ def profile_view(request):
             if not set(events).issubset(allowed_events):
                 messages.error(request, "Select only supported shipment webhook events.")
                 return redirect(f"{reverse('profile')}?tab=api")
+
+            # Update business and profile
+            business.webhook_url = endpoint
+            business.webhook_events = events
+            business.save(update_fields=["webhook_url", "webhook_events"])
+
             profile.webhook_url = endpoint
             profile.webhook_events = events
             profile.save(update_fields=["webhook_url", "webhook_events"])
-            messages.success(request, "Webhook preferences saved. Delivery execution is not enabled in this deployment.")
+
+            messages.success(request, "Webhook configuration updated. Deliveries are actively queued via Celery.")
             return redirect(f"{reverse('profile')}?tab=api")
+
         settings_form = ProfileSettingsForm(request.POST, instance=profile)
         if settings_form.is_valid():
-            profile = settings_form.save(commit=False)
-            profile.save()
+            profile = settings_form.save()
             messages.success(request, "Organization settings updated successfully.")
             return redirect(f"{reverse('profile')}?tab={active_tab}")
         password_form = PasswordChangeForm(request.user)
     else:
         settings_form = ProfileSettingsForm(instance=profile)
         password_form = PasswordChangeForm(request.user)
+
     api_form = ProfileSettingsForm(instance=profile)
+    webhook_logs = business.webhook_logs.all()[:15]
+
     return render(request, "profile.html", {
         "active_tab": active_tab,
         "settings_form": settings_form,
         "password_form": password_form,
         "api_form": api_form,
-        "organization_id": f"org_{request.user.pk:04d}",
+        "business": business,
+        "organization_id": f"biz_{business.pk:04d}",
+        "webhook_logs": webhook_logs,
     })
 
 
+@ratelimit(key="ip", rate="60/m", block=False)
 def public_tracking_page(request):
+    was_limited = getattr(request, "limited", False)
+    if was_limited:
+        return render(
+            request,
+            "public_tracking.html",
+            {
+                "rate_limited": True,
+                "tracking_number": "",
+                "shipment": None,
+                "recent_shipments": [],
+                "shipment_status_choices": STATUS_CHOICES,
+            },
+            status=429,
+        )
+
     tracking_number = request.GET.get("tracking_number", "").strip().upper()
     shipment = None
     if tracking_number:
@@ -335,26 +504,53 @@ def public_tracking_page(request):
             "tracking_number": tracking_number,
             "recent_shipments": recent_shipments,
             "shipment_status_choices": STATUS_CHOICES,
+            "rate_limited": False,
         },
     )
 
 
+@ratelimit(key="ip", rate="30/m", block=False)
 def public_tracking_api(request, tracking_number):
+    was_limited = getattr(request, "limited", False)
+    if was_limited:
+        response = JsonResponse(
+            {
+                "error": "rate_limit_exceeded",
+                "message": "Too many tracking requests. Please wait before retrying.",
+                "retry_after_seconds": 60,
+            },
+            status=429,
+        )
+        response["Retry-After"] = "60"
+        response["Cache-Control"] = "no-store, max-age=0"
+        return response
+
     shipment = get_object_or_404(Shipment, tracking_number=tracking_number)
     data = {
         "tracking_number": shipment.tracking_number,
         "status": shipment.status,
+        "carrier": shipment.carrier,
         "origin": shipment.origin,
         "destination": shipment.destination,
         "updated_at": shipment.updated_at.isoformat(),
+        "proof_of_delivery": {
+            "signature_url": shipment.signature_presigned_url,
+            "photo_url": shipment.photo_presigned_url,
+            "delivery_lat": str(shipment.delivery_lat) if shipment.delivery_lat else None,
+            "delivery_lng": str(shipment.delivery_lng) if shipment.delivery_lng else None,
+            "failure_reason": shipment.failure_reason or None,
+        },
         "history": [
             {
                 "status": entry.status,
                 "location": entry.location,
                 "note": entry.note,
                 "created_at": entry.created_at.isoformat(),
+                "failure_reason": entry.failure_reason or None,
             }
             for entry in shipment.history.all()
         ],
     }
-    return JsonResponse(data)
+    response = JsonResponse(data)
+    response["Cache-Control"] = "public, max-age=15"
+    return response
