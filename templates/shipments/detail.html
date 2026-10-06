@@ -2,71 +2,473 @@
 
 {% block content %}
 <div class="space-y-8">
+  <!-- Top Navigation & Action Header -->
   <div class="rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-6 shadow-[var(--shadow)]">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
       <div>
-        <p class="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">Shipment</p>
-        <div class="mt-3 ticket-notch inline-block rounded-2xl border border-[var(--line)] bg-[#fef3c7] px-5 py-3 text-2xl font-black uppercase tracking-[0.2em] text-[var(--text)]">{{ shipment.tracking_number }}</div>
+        <div class="flex items-center gap-3">
+          <p class="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">Shipment</p>
+          <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider
+            {% if shipment.status == 'delivered' %}bg-emerald-100 text-emerald-800
+            {% elif shipment.status == 'failed' %}bg-rose-100 text-rose-800
+            {% elif shipment.status == 'out_for_delivery' %}bg-amber-100 text-amber-800
+            {% else %}bg-blue-100 text-blue-800{% endif %}">
+            {{ shipment.get_status_display }}
+          </span>
+        </div>
+        <div class="mt-3 ticket-notch inline-block rounded-2xl border border-[var(--line)] bg-[#fef3c7] px-5 py-3 text-2xl font-black uppercase tracking-[0.2em] text-[var(--text)]">
+          {{ shipment.tracking_number }}
+        </div>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- 4x6 Thermal Label PDF Action -->
+        <a href="{% url 'shipment_label_pdf' shipment.pk %}" target="_blank" class="inline-flex items-center gap-2 rounded-full border border-zinc-900 bg-zinc-900 px-4 py-2 font-medium text-white shadow-sm transition hover:bg-zinc-800">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+          Print 4x6 Label
+        </a>
         <button type="button" data-copy-link="{{ request.build_absolute_uri|cut:'http://127.0.0.1:8000' }}{% url 'public_tracking' %}?tracking_number={{ shipment.tracking_number }}" class="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-white px-4 py-2 font-medium">
           <svg data-copy-icon class="h-4 w-4" viewBox="0 0 20 20" fill="none"><path d="M7 7.5A2.5 2.5 0 0 1 9.5 5H14a2 2 0 0 1 2 2v4.5A2.5 2.5 0 0 1 13.5 14H9.5A2.5 2.5 0 0 1 7 11.5v-4z" stroke="currentColor" stroke-width="1.5"/><path d="M4 10.5A2.5 2.5 0 0 1 6.5 8h4A2.5 2.5 0 0 1 13 10.5v4A2.5 2.5 0 0 1 10.5 17h-4A2.5 2.5 0 0 1 4 14.5v-4z" stroke="currentColor" stroke-width="1.5"/></svg>
           <svg data-copy-done class="hidden h-4 w-4" viewBox="0 0 20 20" fill="none"><path d="M5 10.5l3 3 7-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Copy tracking link
+          Copy link
         </button>
         <a href="{% url 'shipment_edit' shipment.pk %}" class="rounded-full bg-brand-600 px-4 py-2 font-semibold text-white">Edit</a>
       </div>
     </div>
   </div>
 
+  <!-- Information Grid -->
   <div class="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+    <!-- Status History Timeline -->
     <div class="rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-6 shadow-[var(--shadow)]">
-      <h2 class="text-xl font-black uppercase tracking-[-0.04em]">Status history</h2>
+      <h2 class="text-xl font-black uppercase tracking-[-0.04em]">Telemetry & Status History</h2>
       <div class="mt-6 space-y-4">
         {% for update in shipment.history.all %}
           <div class="flex gap-4">
             <div class="flex w-8 flex-col items-center">
               <span class="mt-1 inline-block h-3 w-3 rounded-full bg-brand-600"></span>
-              {% if not forloop.last %}<span class="mt-1 h-16 w-px bg-[var(--line)]"></span>{% endif %}
+              {% if not forloop.last %}<span class="mt-1 h-24 w-px bg-[var(--line)]"></span>{% endif %}
             </div>
-            <div class="flex-1 rounded-2xl border border-[var(--line)] bg-white/60 p-3">
-              <div class="flex items-center justify-between gap-3"><span class="font-semibold">{{ update.get_status_display }}</span><span class="text-xs text-[var(--muted)]">{{ update.created_at|date:'M d, Y H:i' }}</span></div>
-              {% if update.location %}<p class="mt-2 text-sm text-[var(--muted)]">{{ update.location }}</p>{% endif %}
-              {% if update.note %}<p class="mt-1 text-sm">{{ update.note }}</p>{% endif %}
+            <div class="flex-1 rounded-2xl border border-[var(--line)] bg-white/70 p-4 shadow-sm">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="font-semibold text-zinc-900">{{ update.get_status_display }}</span>
+                <span class="text-xs text-[var(--muted)]">{{ update.created_at|date:'M d, Y H:i:s' }}</span>
+              </div>
+              {% if update.location %}
+                <p class="mt-1.5 text-xs text-[var(--muted)]">Checkpoint: <span class="font-medium text-zinc-700">{{ update.location }}</span></p>
+              {% endif %}
+              {% if update.note %}
+                <p class="mt-1 text-sm text-zinc-800">{{ update.note }}</p>
+              {% endif %}
+              {% if update.failure_reason %}
+                <div class="mt-2 inline-flex items-center gap-1.5 rounded-md bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">
+                  <span>Exception: {{ update.get_failure_reason_display }}</span>
+                </div>
+              {% endif %}
+
+              <!-- Historical ePoD Snapshot preview -->
+              {% if update.signature_presigned_url or update.photo_presigned_url or update.delivery_lat %}
+                <div class="mt-3 flex flex-wrap items-center gap-3 border-t border-zinc-100 pt-2 text-xs">
+                  {% if update.signature_presigned_url %}
+                    <a href="{{ update.signature_presigned_url }}" target="_blank" class="inline-flex items-center gap-1 text-brand-700 underline font-medium">
+                      View Signature
+                    </a>
+                  {% endif %}
+                  {% if update.photo_presigned_url %}
+                    <a href="{{ update.photo_presigned_url }}" target="_blank" class="inline-flex items-center gap-1 text-brand-700 underline font-medium">
+                      View Photo
+                    </a>
+                  {% endif %}
+                  {% if update.delivery_lat and update.delivery_lng %}
+                    <a href="https://www.google.com/maps?q={{ update.delivery_lat }},{{ update.delivery_lng }}" target="_blank" class="inline-flex items-center gap-1 text-emerald-700 font-medium">
+                      GPS: {{ update.delivery_lat|floatformat:4 }}, {{ update.delivery_lng|floatformat:4 }} ↗
+                    </a>
+                  {% endif %}
+                </div>
+              {% endif %}
             </div>
           </div>
         {% empty %}
-          <p class="text-[var(--muted)]">No updates recorded yet.</p>
+          <p class="text-[var(--muted)]">No telemetry recorded yet.</p>
         {% endfor %}
       </div>
     </div>
 
-    <div class="rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-6 shadow-[var(--shadow)]">
-      <h2 class="text-xl font-black uppercase tracking-[-0.04em]">Details</h2>
-      <dl class="mt-4 space-y-4 text-sm">
-        <div><dt class="text-[var(--muted)]">Recipient</dt><dd class="mt-1 font-semibold">{{ shipment.recipient_name }}</dd></div>
-        <div><dt class="text-[var(--muted)]">Phone</dt><dd class="mt-1 font-semibold">{{ shipment.recipient_phone }}</dd></div>
-        <div><dt class="text-[var(--muted)]">From</dt><dd class="mt-1 font-semibold">{{ shipment.origin }}</dd></div>
-        <div><dt class="text-[var(--muted)]">Destination</dt><dd class="mt-1 font-semibold">{{ shipment.destination }}</dd></div>
-        <div><dt class="text-[var(--muted)]">Description</dt><dd class="mt-1 font-semibold">{{ shipment.description }}</dd></div>
-      </dl>
+    <!-- Parcel & Security Details -->
+    <div class="space-y-6">
+      <div class="rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-6 shadow-[var(--shadow)]">
+        <h2 class="text-xl font-black uppercase tracking-[-0.04em]">Consignment Details</h2>
+        <dl class="mt-4 space-y-4 text-sm">
+          <div><dt class="text-[var(--muted)]">Recipient</dt><dd class="mt-1 font-semibold text-zinc-900">{{ shipment.recipient_name }}</dd></div>
+          <div><dt class="text-[var(--muted)]">Phone</dt><dd class="mt-1 font-semibold text-zinc-900">{{ shipment.recipient_phone }}</dd></div>
+          <div><dt class="text-[var(--muted)]">Origin Terminal</dt><dd class="mt-1 font-semibold text-zinc-900">{{ shipment.origin }}</dd></div>
+          <div><dt class="text-[var(--muted)]">Destination</dt><dd class="mt-1 font-semibold text-zinc-900">{{ shipment.destination }}</dd></div>
+          <div><dt class="text-[var(--muted)]">Carrier Fleet</dt><dd class="mt-1 font-semibold text-zinc-900">{{ shipment.carrier }}</dd></div>
+          <div><dt class="text-[var(--muted)]">Estimated Delivery</dt><dd class="mt-1 font-semibold text-zinc-900">{{ shipment.estimated_delivery|date:'M d, Y H:i'|default:'Pending dispatch' }}</dd></div>
+          <div><dt class="text-[var(--muted)]">Special Instructions</dt><dd class="mt-1 text-zinc-700">{{ shipment.description|default:'None provided' }}</dd></div>
+        </dl>
+      </div>
+
+      <!-- Security / Delivery PIN Card -->
+      <div class="rounded-[2rem] border border-amber-200 bg-amber-50/60 p-6 shadow-[var(--shadow)]">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold uppercase tracking-wider text-amber-900">Secure ePoD PIN</h3>
+          <span class="rounded bg-amber-200 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-amber-900">Auth Code</span>
+        </div>
+        <p class="mt-2 text-xs text-amber-800">
+          The recipient must quote this 4-digit verification code to the courier upon parcel delivery.
+        </p>
+        <div class="mt-3 flex items-center justify-between rounded-xl border border-amber-300 bg-white p-3 font-mono text-2xl font-black tracking-[0.3em] text-zinc-900">
+          <span>{{ shipment.delivery_pin_raw|default:"****" }}</span>
+          <span class="text-xs font-sans font-normal text-zinc-400">Hashed in DB</span>
+        </div>
+      </div>
+
+      <!-- Electronic Proof of Delivery (ePoD) Inspection Card -->
+      {% if shipment.signature_presigned_url or shipment.photo_presigned_url or shipment.delivery_lat %}
+      <div class="rounded-[2rem] border border-emerald-200 bg-emerald-50/50 p-6 shadow-[var(--shadow)]">
+        <h3 class="text-sm font-bold uppercase tracking-wider text-emerald-900">Verified Proof of Delivery</h3>
+        <div class="mt-4 space-y-4">
+          {% if shipment.signature_presigned_url %}
+            <div>
+              <p class="text-xs font-medium text-emerald-800">Recipient Signature:</p>
+              <div class="mt-1 overflow-hidden rounded-xl border border-emerald-200 bg-white p-2">
+                <img src="{{ shipment.signature_presigned_url }}" alt="Recipient Signature" class="max-h-24 w-auto object-contain mx-auto" />
+              </div>
+            </div>
+          {% endif %}
+          {% if shipment.photo_presigned_url %}
+            <div>
+              <p class="text-xs font-medium text-emerald-800">Handover Photo:</p>
+              <div class="mt-1 overflow-hidden rounded-xl border border-emerald-200 bg-white p-2">
+                <img src="{{ shipment.photo_presigned_url }}" alt="Delivery Photo" class="max-h-36 w-auto object-cover rounded-lg mx-auto" />
+              </div>
+            </div>
+          {% endif %}
+          {% if shipment.delivery_lat and shipment.delivery_lng %}
+            <div class="rounded-xl border border-emerald-200 bg-white p-3 text-xs">
+              <span class="font-semibold text-zinc-900">GPS Handover Fix:</span>
+              <p class="text-zinc-600 font-mono mt-0.5">{{ shipment.delivery_lat }}, {{ shipment.delivery_lng }}</p>
+              <a href="https://www.google.com/maps?q={{ shipment.delivery_lat }},{{ shipment.delivery_lng }}" target="_blank" class="mt-1 inline-block text-brand-700 underline font-semibold">
+                Open in Google Maps ↗
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
     </div>
   </div>
 
+  <!-- Interactive State Transition & ePoD Capture Form -->
+  {% if shipment.get_next_statuses %}
   <div class="rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-6 shadow-[var(--shadow)]">
-    <h2 class="text-xl font-black uppercase tracking-[-0.04em]">Update status</h2>
-    <form method="post" action="{% url 'shipment_detail' shipment.pk %}" class="mt-6 space-y-4">
+    <div class="flex items-center justify-between border-b border-[var(--line)] pb-4">
+      <div>
+        <h2 class="text-xl font-black uppercase tracking-[-0.04em]">Dispatch & Status Transition</h2>
+        <p class="text-xs text-[var(--muted)]">Capture real-time handover telemetry, recipient signature, and courier photos.</p>
+      </div>
+      <span class="rounded-full bg-zinc-100 px-3 py-1 text-xs font-mono font-medium text-zinc-700">Atomic &bull; Idempotent</span>
+    </div>
+
+    <form method="post" action="{% url 'shipment_detail' shipment.pk %}" enctype="multipart/form-data" class="mt-6 space-y-6" id="epod_form">
       {% csrf_token %}
       {{ status_form.non_field_errors }}
-      {% for field in status_form %}
+
+      <div class="grid gap-6 md:grid-cols-2">
+        <!-- Target Status -->
         <div>
-          <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-medium">{{ field.label }}</label>
-          {{ field }}
-          {% if field.errors %}<div class="mt-1 text-sm text-rose-600">{{ field.errors|join:', ' }}</div>{% endif %}
+          <label for="{{ status_form.status.id_for_label }}" class="mb-2 block text-sm font-semibold text-zinc-900">Next Status *</label>
+          {{ status_form.status }}
+          {% if status_form.status.errors %}<div class="mt-1 text-xs text-rose-600">{{ status_form.status.errors|join:', ' }}</div>{% endif %}
         </div>
-      {% endfor %}
-      <button type="submit" class="rounded-full bg-brand-600 px-4 py-3 font-semibold text-white">Save update</button>
+
+        <!-- Current Location / Checkpoint -->
+        <div>
+          <label for="{{ status_form.location.id_for_label }}" class="mb-2 block text-sm font-semibold text-zinc-900">Location Checkpoint</label>
+          <div class="flex gap-2">
+            {{ status_form.location }}
+            <button type="button" id="btn_detect_gps" class="shrink-0 rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-100" title="Auto-detect current GPS">
+              📍 GPS
+            </button>
+          </div>
+          {% if status_form.location.errors %}<div class="mt-1 text-xs text-rose-600">{{ status_form.location.errors|join:', ' }}</div>{% endif %}
+          <div id="gps_status_badge" class="mt-1 hidden text-xs font-medium text-emerald-700"></div>
+        </div>
+      </div>
+
+      <!-- Hidden Lat / Lng inputs -->
+      {{ status_form.delivery_lat }}
+      {{ status_form.delivery_lng }}
+      {{ status_form.recipient_signature_data }}
+
+      <!-- Courier / Dispatcher Note -->
+      <div>
+        <label for="{{ status_form.note.id_for_label }}" class="mb-2 block text-sm font-semibold text-zinc-900">Dispatch / Delivery Notes</label>
+        {{ status_form.note }}
+        {% if status_form.note.errors %}<div class="mt-1 text-xs text-rose-600">{{ status_form.note.errors|join:', ' }}</div>{% endif %}
+      </div>
+
+      <!-- Conditional Failure Reason Section -->
+      <div id="section_failure_reason" class="hidden rounded-2xl border border-rose-200 bg-rose-50/50 p-4">
+        <label for="{{ status_form.failure_reason.id_for_label }}" class="mb-2 block text-sm font-bold text-rose-900">Exception Reason *</label>
+        {{ status_form.failure_reason }}
+        {% if status_form.failure_reason.errors %}<div class="mt-1 text-xs text-rose-600">{{ status_form.failure_reason.errors|join:', ' }}</div>{% endif %}
+      </div>
+
+      <!-- Conditional Delivered ePoD Handover Section -->
+      <div id="section_delivery_epod" class="hidden space-y-6 rounded-2xl border border-emerald-200 bg-emerald-50/40 p-6">
+        <div class="border-b border-emerald-100 pb-3">
+          <h3 class="font-bold text-emerald-950">Electronic Proof of Delivery (ePoD) Capture</h3>
+          <p class="text-xs text-emerald-800">Mandatory verification checks for final package handover.</p>
+        </div>
+
+        <!-- 4-Digit Delivery PIN Verification -->
+        <div>
+          <label for="{{ status_form.delivery_pin.id_for_label }}" class="mb-2 block text-sm font-semibold text-zinc-900">
+            Recipient 4-Digit PIN *
+          </label>
+          <div class="max-w-xs">
+            {{ status_form.delivery_pin }}
+          </div>
+          {% if status_form.delivery_pin.errors %}<div class="mt-1 text-xs text-rose-600">{{ status_form.delivery_pin.errors|join:', ' }}</div>{% endif %}
+          <p class="mt-1 text-xs text-zinc-500">Ask the recipient for their one-time PIN code.</p>
+        </div>
+
+        <!-- HTML5 Touch Signature Canvas Component -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="block text-sm font-semibold text-zinc-900">Recipient Signature (Sign in Box)</label>
+            <button type="button" id="btn_clear_sig" class="text-xs font-semibold text-rose-600 hover:text-rose-800 underline">Clear Signature</button>
+          </div>
+          <div class="overflow-hidden rounded-xl border-2 border-dashed border-zinc-300 bg-white">
+            <canvas id="sig_canvas" width="460" height="160" class="w-full touch-none cursor-crosshair bg-white"></canvas>
+          </div>
+          <p class="mt-1 text-xs text-zinc-400">Touch or draw using fingertip/stylus or mouse.</p>
+        </div>
+
+        <!-- Instant Camera File Input Component -->
+        <div>
+          <label for="{{ status_form.delivery_photo.id_for_label }}" class="mb-2 block text-sm font-semibold text-zinc-900">
+            Delivery Handover Photo (Package at Door / In Hand)
+          </label>
+          <input type="file" name="delivery_photo" id="{{ status_form.delivery_photo.id_for_label }}" accept="image/*" capture="environment" class="block w-full text-sm text-zinc-500 file:mr-4 file:rounded-full file:border-0 file:bg-zinc-900 file:px-4 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-zinc-800" />
+          {% if status_form.delivery_photo.errors %}<div class="mt-1 text-xs text-rose-600">{{ status_form.delivery_photo.errors|join:', ' }}</div>{% endif %}
+          <div id="photo_preview_container" class="mt-3 hidden">
+            <img id="photo_preview" src="" alt="Captured preview" class="h-32 rounded-lg object-cover border border-zinc-200" />
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-4 border-t border-[var(--line)]">
+        <a href="{% url 'shipments_list' %}" class="rounded-full border border-zinc-300 px-5 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50">Cancel</a>
+        <button type="submit" id="btn_submit_update" class="rounded-full bg-brand-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-brand-500 transition">
+          Confirm Transition & Log Telemetry
+        </button>
+      </div>
     </form>
   </div>
+  {% else %}
+  <div class="rounded-2xl border border-zinc-200 bg-zinc-50 p-6 text-center text-sm text-zinc-500">
+    This shipment has reached its terminal state (<strong>{{ shipment.get_status_display }}</strong>). No further transitions are permitted.
+  </div>
+  {% endif %}
 </div>
+
+<!-- Interactive Client-side Script for ePoD Touch Canvas, Camera Preview & Geolocation -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const statusSelect = document.getElementById('{{ status_form.status.id_for_label }}');
+  const sectionDelivered = document.getElementById('section_delivery_epod');
+  const sectionFailed = document.getElementById('section_failure_reason');
+  const btnDetectGPS = document.getElementById('btn_detect_gps');
+  const gpsBadge = document.getElementById('gps_status_badge');
+  const inputLat = document.getElementById('{{ status_form.delivery_lat.id_for_label }}');
+  const inputLng = document.getElementById('{{ status_form.delivery_lng.id_for_label }}');
+  const inputSigData = document.getElementById('{{ status_form.recipient_signature_data.id_for_label }}');
+  const inputLocation = document.getElementById('{{ status_form.location.id_for_label }}');
+
+  // Toggle conditional sections based on status
+  function updateSections() {
+    if (!statusSelect) return;
+    const val = statusSelect.value;
+    if (val === 'delivered') {
+      sectionDelivered.classList.remove('hidden');
+      sectionFailed.classList.add('hidden');
+      resizeCanvas();
+    } else if (val === 'failed') {
+      sectionDelivered.classList.add('hidden');
+      sectionFailed.classList.remove('hidden');
+    } else {
+      sectionDelivered.classList.add('hidden');
+      sectionFailed.classList.add('hidden');
+    }
+  }
+
+  if (statusSelect) {
+    statusSelect.addEventListener('change', updateSections);
+    updateSections();
+  }
+
+  // Geolocation API Integration
+  function captureGPS() {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+    gpsBadge.classList.remove('hidden');
+    gpsBadge.textContent = "Acquiring precise GPS fix...";
+    navigator.geolocation.getCurrentPosition(
+      function (pos) {
+        const lat = pos.coords.latitude.toFixed(6);
+        const lng = pos.coords.longitude.toFixed(6);
+        inputLat.value = lat;
+        inputLng.value = lng;
+        if (!inputLocation.value) {
+          inputLocation.value = "GPS Fix: " + lat + ", " + lng;
+        }
+        gpsBadge.textContent = "✓ Fixed: " + lat + ", " + lng + " (±" + Math.round(pos.coords.accuracy) + "m)";
+        gpsBadge.className = "mt-1 text-xs font-semibold text-emerald-700";
+      },
+      function (err) {
+        gpsBadge.textContent = "GPS notice: " + err.message;
+        gpsBadge.className = "mt-1 text-xs text-amber-700";
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }
+
+  if (btnDetectGPS) {
+    btnDetectGPS.addEventListener('click', captureGPS);
+  }
+
+  // Auto-acquire GPS when delivered is selected
+  if (statusSelect) {
+    statusSelect.addEventListener('change', function () {
+      if (statusSelect.value === 'delivered' && !inputLat.value) {
+        captureGPS();
+      }
+    });
+  }
+
+  // HTML5 Touch Signature Canvas Component
+  const canvas = document.getElementById('sig_canvas');
+  const btnClear = document.getElementById('btn_clear_sig');
+  let ctx = null;
+  let isDrawing = false;
+  let hasDrawn = false;
+
+  function resizeCanvas() {
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width > 0 && canvas.width !== rect.width) {
+      // Create temporary buffer to preserve existing strokes on resize
+      const temp = canvas.toDataURL();
+      canvas.width = rect.width;
+      canvas.height = 160;
+      ctx = canvas.getContext('2d');
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#18181b';
+      if (hasDrawn) {
+        const img = new Image();
+        img.onload = () => ctx.drawImage(img, 0, 0);
+        img.src = temp;
+      }
+    } else if (!ctx) {
+      ctx = canvas.getContext('2d');
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#18181b';
+    }
+  }
+
+  if (canvas) {
+    ctx = canvas.getContext('2d');
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#18181b';
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top,
+      };
+    }
+
+    function startDraw(e) {
+      e.preventDefault();
+      isDrawing = true;
+      hasDrawn = true;
+      const pos = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+    }
+
+    function draw(e) {
+      if (!isDrawing) return;
+      e.preventDefault();
+      const pos = getPos(e);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+    }
+
+    function stopDraw(e) {
+      if (isDrawing) {
+        isDrawing = false;
+        inputSigData.value = canvas.toDataURL('image/png');
+      }
+    }
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    window.addEventListener('mouseup', stopDraw);
+
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+    window.addEventListener('touchend', stopDraw);
+
+    if (btnClear) {
+      btnClear.addEventListener('click', function () {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        inputSigData.value = '';
+        hasDrawn = false;
+      });
+    }
+  }
+
+  // Camera file preview
+  const photoInput = document.getElementById('{{ status_form.delivery_photo.id_for_label }}');
+  const previewContainer = document.getElementById('photo_preview_container');
+  const photoPreview = document.getElementById('photo_preview');
+
+  if (photoInput) {
+    photoInput.addEventListener('change', function () {
+      const file = photoInput.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          photoPreview.src = e.target.result;
+          previewContainer.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+      } else {
+        previewContainer.classList.add('hidden');
+      }
+    });
+  }
+
+  // Final form submit capture
+  const form = document.getElementById('epod_form');
+  if (form) {
+    form.addEventListener('submit', function () {
+      if (canvas && hasDrawn) {
+        inputSigData.value = canvas.toDataURL('image/png');
+      }
+    });
+  }
+});
+</script>
 {% endblock %}
