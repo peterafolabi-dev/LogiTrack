@@ -7,6 +7,7 @@ from django.contrib.auth import authenticate, login, logout, update_session_auth
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
 from django.core.exceptions import ValidationError
+from django.http import Http404
 from django import forms
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -19,6 +20,7 @@ from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
 from .forms import (
+    DeliveryPreferenceForm,
     ProfileSettingsForm,
     ShipmentForm,
     ShipmentImportUploadForm,
@@ -27,6 +29,7 @@ from .forms import (
 )
 from .models import (
     Business,
+    DeliveryPreferenceRequest,
     Shipment,
     ShipmentImportBatch,
     StatusUpdate,
@@ -260,6 +263,7 @@ def shipment_detail(request, pk):
         {
             "shipment": shipment,
             "status_form": status_form,
+            "delivery_preference_request": getattr(shipment, "delivery_preference_request", None),
         },
     )
 
@@ -607,6 +611,52 @@ def public_tracking_page(request):
             "rate_limited": False,
         },
     )
+
+
+def delivery_preferences(request, public_id, token):
+    preference_request = get_object_or_404(
+        DeliveryPreferenceRequest.objects.select_related("shipment"),
+        public_id=public_id,
+    )
+    if preference_request.is_expired or not preference_request.matches_token(token):
+        raise Http404
+
+    form = DeliveryPreferenceForm(request.POST or None)
+    shipment_closed = preference_request.shipment.status in {"delivered", "failed"}
+    if request.method == "POST" and not preference_request.submitted_at and not shipment_closed and form.is_valid():
+        with transaction.atomic():
+            preference_request = DeliveryPreferenceRequest.objects.select_for_update().select_related("shipment").get(
+                pk=preference_request.pk
+            )
+            if preference_request.is_expired or not preference_request.matches_token(token):
+                raise Http404
+            shipment_closed = preference_request.shipment.status in {"delivered", "failed"}
+            if not preference_request.submitted_at and not shipment_closed:
+                preference_request.delivery_instructions = form.cleaned_data["delivery_instructions"]
+                preference_request.requested_delivery_date = form.cleaned_data["requested_delivery_date"]
+                preference_request.submitted_at = timezone.now()
+                preference_request.save(
+                    update_fields=[
+                        "delivery_instructions",
+                        "requested_delivery_date",
+                        "submitted_at",
+                    ]
+                )
+
+    response = render(
+        request,
+        "shipments/delivery_preferences.html",
+        {
+            "shipment": preference_request.shipment,
+            "preference_request": preference_request,
+            "form": form,
+            "shipment_closed": shipment_closed,
+        },
+    )
+    response["Cache-Control"] = "no-store, max-age=0"
+    response["Referrer-Policy"] = "no-referrer"
+    response["X-Robots-Tag"] = "noindex, nofollow"
+    return response
 
 
 @ratelimit(key="ip", rate="30/m", block=False)

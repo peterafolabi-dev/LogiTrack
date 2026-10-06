@@ -53,6 +53,11 @@ urlpatterns = [
     path("shipments/<int:pk>/label/", views.shipment_label_pdf, name="shipment_label_pdf"),
     path("profile/", views.profile_view, name="profile"),
     path("tracking/", views.public_tracking_page, name="public_tracking"),
+    path(
+        "delivery-preferences/<uuid:public_id>/<str:token>/",
+        views.delivery_preferences,
+        name="delivery_preferences",
+    ),
     path("api/track/<str:tracking_number>/", views.public_tracking_api, name="public_tracking_api"),
     path("api/shipments/batch-update/", views.batch_update_api, name="batch_update_api"),
 ]

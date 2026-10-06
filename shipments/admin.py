@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Business, Profile, Shipment, StatusUpdate, WebhookDeliveryLog
+from .models import Business, DeliveryPreferenceRequest, Profile, Shipment, StatusUpdate, WebhookDeliveryLog
 
 
 @admin.register(Business)
@@ -34,3 +34,11 @@ class WebhookDeliveryLogAdmin(admin.ModelAdmin):
     list_display = ("event_type", "business", "status", "status_code", "attempts", "created_at")
     list_filter = ("status", "event_type", "created_at")
     search_fields = ("event_type", "target_url", "error_message")
+
+
+@admin.register(DeliveryPreferenceRequest)
+class DeliveryPreferenceRequestAdmin(admin.ModelAdmin):
+    list_display = ("shipment", "expires_at", "submitted_at", "sent_at", "created_at")
+    list_filter = ("submitted_at", "sent_at", "expires_at")
+    search_fields = ("shipment__tracking_number", "shipment__recipient_email")
+    readonly_fields = ("public_id", "token_digest", "created_at", "sent_at", "submitted_at")
