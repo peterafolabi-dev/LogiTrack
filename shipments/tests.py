@@ -456,3 +456,67 @@ class EnterpriseSupplyChainTests(TestCase):
         self.assertEqual(data["tracking_number"], self.shipment_a.tracking_number)
         self.assertIn("proof_of_delivery", data)
 
+    def test_webhook_task_success_log(self):
+        """Tests successful webhook dispatch logs to WebhookDeliveryLog."""
+        from unittest.mock import patch
+        from shipments.tasks import dispatch_webhook_task
+        from shipments.models import WebhookDeliveryLog
+
+        business = self.shipment_a.business
+        business.webhook_url = "https://fleet.test/webhook"
+        business.webhook_events = ["shipment.delivered"]
+        business.save()
+
+        with patch("shipments.tasks.deliver_webhook_sync") as mock_deliver:
+            mock_deliver.return_value = (200, '{"ok": true}')
+            res = dispatch_webhook_task.apply(
+                args=[business.id, "shipment.delivered", {"test": "payload"}, self.shipment_a.id]
+            )
+            self.assertTrue(res.successful())
+            log = WebhookDeliveryLog.objects.filter(business=business, event_type="shipment.delivered").first()
+            self.assertIsNotNone(log)
+            self.assertEqual(log.status, "success")
+            self.assertEqual(log.status_code, 200)
+
+    def test_webhook_dead_letter_logging(self):
+        """Tests that exhausted retries log directly to the Dead Letter table."""
+        from unittest.mock import patch
+        import requests
+        from shipments.tasks import dispatch_webhook_task
+        from shipments.models import WebhookDeliveryLog
+
+        business = self.shipment_a.business
+        business.webhook_url = "https://unreachable.fleet.test/webhook"
+        business.webhook_events = ["shipment.exception"]
+        business.save()
+
+        with patch("shipments.tasks.deliver_webhook_sync") as mock_deliver:
+            mock_deliver.side_effect = requests.RequestException("Host unreachable")
+            # Run task at max retry level
+            res = dispatch_webhook_task.apply(
+                args=[business.id, "shipment.exception", {"test": "payload"}, self.shipment_a.id],
+                retries=3,
+            )
+            log = WebhookDeliveryLog.objects.filter(business=business, event_type="shipment.exception").first()
+            self.assertIsNotNone(log)
+            self.assertEqual(log.status, "dead_letter")
+            self.assertIn("Host unreachable", log.error_message)
+
+    def test_rate_limiting_429_response_format(self):
+        """Tests that rate limit violation on tracking API returns 429 with expected JSON structure."""
+        from unittest.mock import patch
+        from django.test import RequestFactory
+        from shipments.views import public_tracking_api
+
+        factory = RequestFactory()
+        req = factory.get(reverse("public_tracking_api", args=[self.shipment_a.tracking_number]))
+        req.limited = True
+
+        resp = public_tracking_api(req, self.shipment_a.tracking_number)
+        self.assertEqual(resp.status_code, 429)
+        self.assertEqual(resp["Retry-After"], "60")
+        import json
+        body = json.loads(resp.content)
+        self.assertEqual(body["error"], "rate_limit_exceeded")
+
+
