@@ -295,6 +295,13 @@ class StatusUpdate(models.Model):
     def __str__(self):
         return f"{self.shipment.tracking_number} - {self.status}"
 
+    def clean(self):
+        super().clean()
+        if self.delivery_lat is not None:
+            self.delivery_lat = round(decimal.Decimal(str(self.delivery_lat)), 6)
+        if self.delivery_lng is not None:
+            self.delivery_lng = round(decimal.Decimal(str(self.delivery_lng)), 6)
+
     @property
     def signature_presigned_url(self):
         return get_presigned_url(self.recipient_signature)
