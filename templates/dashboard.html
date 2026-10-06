@@ -29,7 +29,7 @@
 
   <main class="mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:px-8">
     <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-      <div><p class="font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-400">Fleet dispatch / Overview{% if organization %} / {{ organization }}{% endif %}</p><h1 class="mt-2 text-3xl font-semibold tracking-[-0.05em] text-zinc-950">Operations Command</h1><p class="mt-1 text-xs text-zinc-500">Live fleet dispatch, consignment statuses, and delivery exceptions.</p></div>
+      <div><p class="font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-400">Fleet dispatch / Overview{% if organization %} / {{ organization }}{% endif %}</p><h1 class="mt-2 text-3xl font-semibold tracking-tighter text-zinc-950">Operations Command</h1><p class="mt-1 text-xs text-zinc-500">Live fleet dispatch, consignment statuses, and delivery exceptions.</p></div>
       <div class="flex flex-wrap items-center gap-2">
         <form method="get"><label for="dashboard-range" class="sr-only">Dashboard date range</label><select id="dashboard-range" name="range" onchange="this.form.submit()" class="rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-xs text-zinc-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15"><option value="24h" {% if date_range == '24h' %}selected{% endif %}>Last 24 hours</option><option value="today" {% if date_range == 'today' %}selected{% endif %}>Today</option><option value="all" {% if date_range == 'all' %}selected{% endif %}>All time</option></select></form>
         <a href="{% url 'shipments_list' %}?export=csv" class="rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50">Export CSV / API</a>
@@ -41,7 +41,7 @@
       {% for value, label in shipment_status_choices %}
         <a href="{% url 'shipments_list' %}?status={{ value }}" class="group rounded-xl border border-zinc-200 bg-white p-3.5 transition duration-200 hover:border-zinc-300 hover:shadow-sm">
           <div class="flex items-center justify-between gap-2"><span class="truncate text-[9px] font-semibold uppercase tracking-[0.12em] text-zinc-500">{{ label }}</span><span class="h-2 w-2 rounded-full {% if value == 'pending' %}bg-slate-400{% elif value == 'picked_up' %}bg-sky-500{% elif value == 'in_transit' %}bg-indigo-500{% elif value == 'out_for_delivery' %}bg-emerald-500{% elif value == 'delivered' %}bg-teal-500{% else %}bg-rose-500{% endif %}"></span></div>
-          <p class="mt-3 text-3xl font-semibold tracking-[-0.05em] text-zinc-950">{{ status_counts|get_item:value|default:0 }}</p>
+          <p class="mt-3 text-3xl font-semibold tracking-tighter text-zinc-950">{{ status_counts|get_item:value|default:0 }}</p>
           <p class="mt-1 text-[9px] text-zinc-400">in selected period</p>
         </a>
       {% endfor %}
@@ -61,7 +61,7 @@
 
       {% if latest_shipments %}
         <div class="overflow-x-auto">
-          <table class="w-full min-w-[850px] text-left">
+          <table class="w-full min-w-212.5 text-left">
             <thead class="bg-zinc-50/80 text-[9px] font-semibold uppercase tracking-[0.12em] text-zinc-400"><tr><th class="px-5 py-3">Tracking ID</th><th class="px-4 py-3">Destination hub</th><th class="px-4 py-3">Carrier / fleet</th><th class="px-4 py-3">Stage</th><th class="px-4 py-3">ETA / update</th><th class="px-5 py-3 text-right">Actions</th></tr></thead>
             <tbody class="divide-y divide-zinc-100">
               {% for shipment in latest_shipments %}
