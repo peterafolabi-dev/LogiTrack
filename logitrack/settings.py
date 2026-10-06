@@ -73,6 +73,7 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
+WHITENOISE_MANIFEST_STRICT = False
 
 # Media & Cloud Object Storage Configuration (AWS S3 & Cloudflare R2 compatibility)
 MEDIA_URL = "/media/"
