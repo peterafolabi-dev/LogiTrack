@@ -65,6 +65,14 @@
           </label>
         </div>
 
+        <div id="camera_error" class="mt-4 hidden rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900" role="alert" aria-live="assertive">
+          <p id="camera_error_message" class="font-semibold"></p>
+          <p id="camera_error_help" class="mt-1 text-xs leading-relaxed text-rose-800"></p>
+          <button type="button" id="btn_retry_camera" class="mt-3 rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-900 hover:bg-rose-100">
+            Retry camera
+          </button>
+        </div>
+
         <!-- Manual Tracking ID Input fallback -->
         <div class="mt-6 border-t border-[var(--line)] pt-4">
           <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-600 mb-1">
@@ -174,6 +182,36 @@ document.addEventListener('DOMContentLoaded', function () {
   const batchResults = document.getElementById('batch_results');
   const audioBeepCheck = document.getElementById('audio_beep');
   const btnGPS = document.getElementById('btn_scanner_gps');
+  const cameraError = document.getElementById('camera_error');
+  const cameraErrorMessage = document.getElementById('camera_error_message');
+  const cameraErrorHelp = document.getElementById('camera_error_help');
+  const btnRetryCamera = document.getElementById('btn_retry_camera');
+
+  function showCameraError(error) {
+    const errorName = error && error.name ? error.name : '';
+    cameraError.classList.remove('hidden');
+
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      cameraErrorMessage.textContent = 'Camera access requires a secure page.';
+      cameraErrorHelp.textContent = 'Open LogiTrack on HTTPS or localhost, then try again.';
+      return;
+    }
+
+    if (errorName === 'NotAllowedError' || /permission denied|not allowed/i.test(String(error))) {
+      cameraErrorMessage.textContent = 'LogiTrack does not have permission to use this camera.';
+      cameraErrorHelp.textContent = 'Allow Camera for this site in your browser’s site settings, check that your operating system also allows camera access, then retry. If permission was just changed, reload this page first.';
+      return;
+    }
+
+    if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError') {
+      cameraErrorMessage.textContent = 'No camera was found on this device.';
+      cameraErrorHelp.textContent = 'Connect or enable a camera, then retry. You can still scan with a hardware barcode reader or enter a tracking code manually.';
+      return;
+    }
+
+    cameraErrorMessage.textContent = 'The camera could not be started.';
+    cameraErrorHelp.textContent = 'Close other apps using the camera, check browser and operating-system camera permissions, then retry. You can also use a hardware barcode reader or manual entry.';
+  }
 
   // Web Audio API beep synthesizer
   function playBeep() {
@@ -290,14 +328,26 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   function startScanner() {
+    cameraError.classList.add('hidden');
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showCameraError(new Error('Camera API unavailable in an insecure context'));
+      return;
+    }
+    if (typeof Html5Qrcode === 'undefined') {
+      showCameraError(new Error('Scanner library failed to load'));
+      cameraErrorMessage.textContent = 'The scanner could not be loaded.';
+      cameraErrorHelp.textContent = 'Check your internet connection and content-blocking settings, reload this page, then retry.';
+      return;
+    }
+
     if (!html5QrCode) {
       html5QrCode = new Html5Qrcode("reader");
     }
 
     const cameraId = cameraSelect.value || { facingMode: "environment" };
     placeholderDiv.classList.add('hidden');
-    statusBadge.textContent = "Scanner Active";
-    statusBadge.className = "text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200";
+    statusBadge.textContent = "Requesting Camera";
+    statusBadge.className = "text-xs font-semibold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200";
 
     const config = {
       fps: 15,
@@ -312,15 +362,19 @@ document.addEventListener('DOMContentLoaded', function () {
       () => {} // Ignored frame errors
     ).then(() => {
       isScanning = true;
+      statusBadge.textContent = "Scanner Active";
+      statusBadge.className = "text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200";
       btnToggle.textContent = "Stop Scanner";
       btnToggle.className = "rounded-full bg-rose-600 px-5 py-2 text-sm font-bold text-white shadow-sm hover:bg-rose-500 transition";
     }).catch(err => {
       statusBadge.textContent = "Camera Error";
       statusBadge.className = "text-xs font-semibold text-rose-800 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200";
       placeholderDiv.classList.remove('hidden');
-      alert("Unable to start camera: " + err);
+      showCameraError(err);
     });
   }
+
+  btnRetryCamera.addEventListener('click', startScanner);
 
   function stopScanner() {
     if (html5QrCode && isScanning) {
