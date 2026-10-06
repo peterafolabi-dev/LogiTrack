@@ -62,7 +62,15 @@
           <button type="button" data-sample-tracking="LT-12094" class="sample-chip inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-medium text-slate-600 transition duration-200 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800"><span class="text-slate-400" aria-hidden="true">✓</span><span class="font-mono font-semibold">LT-12094</span> <span class="hidden sm:inline">Delivered</span></button>
         </div>
       </div>
-    </section>
+    {% if rate_limited %}
+      <div class="mt-6 flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900" role="alert">
+        <span class="grid h-6 w-6 place-items-center rounded-full bg-rose-200 text-xs font-bold text-rose-800">!</span>
+        <div>
+          <p class="font-bold">Rate Limit Exceeded (HTTP 429)</p>
+          <p class="text-xs text-rose-700 mt-0.5">Too many inquiries from this IP address. Anti-scraping throttling active. Please wait 60 seconds before making further requests.</p>
+        </div>
+      </div>
+    {% endif %}
 
     {% if tracking_number %}
       {% if shipment %}
