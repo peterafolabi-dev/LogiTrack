@@ -6,7 +6,7 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
-def get_presigned_url(field_file, expiration: int = 3600) -> str:
+def get_presigned_url(field_file, expiration: int = 300) -> str:
     """
     Generate a short-lived pre-signed URL for secure Proof-of-Delivery assets
     stored in AWS S3 or Cloudflare R2.

@@ -533,13 +533,6 @@ def public_tracking_api(request, tracking_number):
         "origin": shipment.origin,
         "destination": shipment.destination,
         "updated_at": shipment.updated_at.isoformat(),
-        "proof_of_delivery": {
-            "signature_url": shipment.signature_presigned_url,
-            "photo_url": shipment.photo_presigned_url,
-            "delivery_lat": str(shipment.delivery_lat) if shipment.delivery_lat else None,
-            "delivery_lng": str(shipment.delivery_lng) if shipment.delivery_lng else None,
-            "failure_reason": shipment.failure_reason or None,
-        },
         "history": [
             {
                 "status": entry.status,

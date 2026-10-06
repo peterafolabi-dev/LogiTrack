@@ -6,6 +6,7 @@ import sys
 
 import dj_database_url
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 
 load_dotenv(BASE_DIR := Path(__file__).resolve().parent.parent / ".env")
 
@@ -86,22 +87,37 @@ AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME", "")
 AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "auto")
 AWS_S3_ENDPOINT_URL = os.environ.get("AWS_S3_ENDPOINT_URL", "")
 
-if USE_S3 and AWS_STORAGE_BUCKET_NAME:
+if not DEBUG and not USE_S3:
+    raise ImproperlyConfigured(
+        "Production media storage must use S3-compatible object storage. "
+        "Set USE_S3=1 and configure AWS_STORAGE_BUCKET_NAME."
+    )
+if USE_S3 and not AWS_STORAGE_BUCKET_NAME:
+    raise ImproperlyConfigured("AWS_STORAGE_BUCKET_NAME is required when USE_S3=1.")
+if bool(AWS_ACCESS_KEY_ID) != bool(AWS_SECRET_ACCESS_KEY):
+    raise ImproperlyConfigured("Set both AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, or neither.")
+if AWS_S3_ENDPOINT_URL and not (AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY):
+    raise ImproperlyConfigured("S3-compatible custom endpoints require both AWS access keys.")
+
+if USE_S3:
+    s3_options = {
+        "bucket_name": AWS_STORAGE_BUCKET_NAME,
+        "region_name": AWS_S3_REGION_NAME,
+        "endpoint_url": AWS_S3_ENDPOINT_URL or None,
+        "default_acl": None,
+        "file_overwrite": False,
+        "querystring_auth": True,
+        "querystring_expire": 300,
+        "signature_version": "s3v4",
+    }
+    if AWS_ACCESS_KEY_ID:
+        s3_options["access_key"] = AWS_ACCESS_KEY_ID
+        s3_options["secret_key"] = AWS_SECRET_ACCESS_KEY
+
     STORAGES = {
         "default": {
             "BACKEND": "storages.backends.s3.S3Storage",
-            "OPTIONS": {
-                "access_key": AWS_ACCESS_KEY_ID,
-                "secret_key": AWS_SECRET_ACCESS_KEY,
-                "bucket_name": AWS_STORAGE_BUCKET_NAME,
-                "region_name": AWS_S3_REGION_NAME,
-                "endpoint_url": AWS_S3_ENDPOINT_URL or None,
-                "default_acl": None,
-                "file_overwrite": False,
-                "querystring_auth": True,
-                "querystring_expire": 3600,
-                "signature_version": "s3v4",
-            },
+            "OPTIONS": s3_options,
         },
         "staticfiles": {
             "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",

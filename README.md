@@ -23,6 +23,19 @@ LogiTrack is a premium shipment tracking platform for small delivery businesses.
    python manage.py runserver
    ```
 
+### Media storage
+
+Local development uses `MEDIA_ROOT` when `DEBUG=1` and `USE_S3=0`. Production
+requires a private S3-compatible bucket; startup fails if `DEBUG=0` and no bucket
+is configured. Set `USE_S3=1`, `AWS_STORAGE_BUCKET_NAME`,
+`AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY`. For AWS S3, set
+`AWS_S3_REGION_NAME` to the bucket's region and leave `AWS_S3_ENDPOINT_URL` empty.
+For Cloudflare R2, set `AWS_S3_REGION_NAME=auto` and
+`AWS_S3_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com`.
+The Render blueprint passes these settings to the web and Celery worker services;
+add the bucket name and credentials in the Render environment before deploying.
+Proof-of-delivery objects are private and signed links expire after five minutes.
+
 Login with the demo account:
 - Username: `demo`
 - Password: `demo12345`

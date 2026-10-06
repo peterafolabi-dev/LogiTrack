@@ -23,6 +23,18 @@ services:
           property: connectionString
       - key: ALLOWED_HOSTS
         value: "*"
+      - key: USE_S3
+        value: "1"
+      - key: AWS_STORAGE_BUCKET_NAME
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_S3_REGION_NAME
+        value: auto
+      - key: AWS_S3_ENDPOINT_URL
+        sync: false
 
   - type: worker
     name: logitrack-worker
@@ -49,6 +61,36 @@ services:
           type: redis
           name: logitrack-redis
           property: connectionString
+      - key: USE_S3
+        fromService:
+          type: web
+          name: logitrack
+          envVarKey: USE_S3
+      - key: AWS_STORAGE_BUCKET_NAME
+        fromService:
+          type: web
+          name: logitrack
+          envVarKey: AWS_STORAGE_BUCKET_NAME
+      - key: AWS_ACCESS_KEY_ID
+        fromService:
+          type: web
+          name: logitrack
+          envVarKey: AWS_ACCESS_KEY_ID
+      - key: AWS_SECRET_ACCESS_KEY
+        fromService:
+          type: web
+          name: logitrack
+          envVarKey: AWS_SECRET_ACCESS_KEY
+      - key: AWS_S3_REGION_NAME
+        fromService:
+          type: web
+          name: logitrack
+          envVarKey: AWS_S3_REGION_NAME
+      - key: AWS_S3_ENDPOINT_URL
+        fromService:
+          type: web
+          name: logitrack
+          envVarKey: AWS_S3_ENDPOINT_URL
 
 databases:
   - name: logitrack-db

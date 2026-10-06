@@ -448,13 +448,24 @@ class EnterpriseSupplyChainTests(TestCase):
         self.assertEqual(headers["X-LogiTrack-Signature"], f"sha256={sig}")
         self.assertEqual(headers["X-LogiTrack-Event"], "shipment.delivered")
 
-    def test_public_tracking_api_payload(self):
-        """Tests public tracking API response format and proof of delivery inclusion."""
+    def test_public_tracking_api_omits_sensitive_delivery_proof(self):
+        """Public tracking must not expose POD files, coordinates, or PIN data."""
+        self.shipment_a.delivery_lat = "47.606200"
+        self.shipment_a.delivery_lng = "-122.332100"
+        self.shipment_a.recipient_signature = "pod/signatures/private.png"
+        self.shipment_a.delivery_photo = "pod/photos/private.jpg"
+        self.shipment_a.save(
+            update_fields=["delivery_lat", "delivery_lng", "recipient_signature", "delivery_photo"]
+        )
+
         response = self.client.get(reverse("public_tracking_api", args=[self.shipment_a.tracking_number]))
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["tracking_number"], self.shipment_a.tracking_number)
-        self.assertIn("proof_of_delivery", data)
+        self.assertNotIn("proof_of_delivery", data)
+        self.assertNotIn("47.6062", response.content.decode())
+        self.assertNotIn("-122.3321", response.content.decode())
+        self.assertNotIn("private.png", response.content.decode())
 
     def test_webhook_task_success_log(self):
         """Tests successful webhook dispatch logs to WebhookDeliveryLog."""
