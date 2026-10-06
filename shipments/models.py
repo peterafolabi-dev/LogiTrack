@@ -107,6 +107,7 @@ class Shipment(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="shipments")
     business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name="shipments", null=True, blank=True)
     tracking_number = models.CharField(max_length=12, unique=True, db_index=True)
+    customer_reference = models.CharField(max_length=100, blank=True, default="")
     recipient_name = models.CharField(max_length=120)
     recipient_phone = models.CharField(max_length=30)
     origin = models.CharField(max_length=160)
@@ -130,6 +131,13 @@ class Shipment(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["business", "customer_reference"],
+                condition=~models.Q(customer_reference=""),
+                name="uniq_shipment_business_customer_reference",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.tracking_number} - {self.recipient_name}"
@@ -272,6 +280,67 @@ class Shipment(models.Model):
         transaction.on_commit(lambda: queue_shipment_webhook(self.pk, f"shipment.{status}"))
 
         return self
+
+
+class ShipmentImportBatch(models.Model):
+    STATUS_CHOICES = [
+        ("queued", "Queued for validation"),
+        ("validating", "Validating"),
+        ("ready", "Ready to import"),
+        ("processing", "Importing"),
+        ("completed", "Completed"),
+        ("completed_with_errors", "Completed with errors"),
+        ("failed", "Failed"),
+    ]
+
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name="shipment_imports")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="shipment_imports")
+    source_file = models.FileField(upload_to="shipment-imports/%Y/%m/")
+    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default="queued")
+    total_rows = models.PositiveIntegerField(default=0)
+    valid_rows = models.PositiveIntegerField(default=0)
+    imported_rows = models.PositiveIntegerField(default=0)
+    failed_rows = models.PositiveIntegerField(default=0)
+    error_message = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Import {self.pk} ({self.status}) for {self.business}"
+
+
+class ShipmentImportRow(models.Model):
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("invalid", "Invalid"),
+        ("imported", "Imported"),
+        ("failed", "Failed"),
+    ]
+
+    import_batch = models.ForeignKey(ShipmentImportBatch, on_delete=models.CASCADE, related_name="rows")
+    row_number = models.PositiveIntegerField()
+    payload = models.JSONField(default=dict, blank=True)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default="pending")
+    error_message = models.CharField(max_length=500, blank=True, default="")
+    shipment = models.ForeignKey(
+        Shipment,
+        on_delete=models.SET_NULL,
+        related_name="import_rows",
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["row_number"]
+        constraints = [
+            models.UniqueConstraint(fields=["import_batch", "row_number"], name="uniq_import_batch_row_number"),
+        ]
+
+    def __str__(self):
+        return f"Import {self.import_batch_id}, CSV row {self.row_number}"
 
 
 class StatusUpdate(models.Model):
