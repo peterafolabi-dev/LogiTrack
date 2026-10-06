@@ -9,6 +9,34 @@ from django.core.files.base import ContentFile
 
 from .models import FAILURE_REASON_CHOICES, Profile, Shipment, StatusUpdate
 
+MAX_SHIPMENT_IMPORT_BYTES = 5 * 1024 * 1024
+
+
+class ShipmentImportUploadForm(forms.Form):
+    csv_file = forms.FileField(label="CSV manifest")
+
+    def clean_csv_file(self):
+        uploaded_file = self.cleaned_data["csv_file"]
+        if not uploaded_file.name.lower().endswith(".csv"):
+            raise ValidationError("Upload a .csv file.")
+        if uploaded_file.size > MAX_SHIPMENT_IMPORT_BYTES:
+            raise ValidationError("The CSV file must be 5 MB or smaller.")
+        return uploaded_file
+
+
+class ShipmentImportRowForm(forms.Form):
+    customer_reference = forms.CharField(max_length=100, required=False, strip=True)
+    recipient_name = forms.CharField(max_length=120, strip=True)
+    recipient_phone = forms.CharField(max_length=30, strip=True)
+    origin = forms.CharField(max_length=160, strip=True)
+    destination = forms.CharField(max_length=160, strip=True)
+    carrier = forms.CharField(max_length=80, required=False, strip=True)
+    estimated_delivery = forms.DateTimeField(required=False)
+    description = forms.CharField(required=False, strip=True, widget=forms.Textarea)
+
+    def clean_carrier(self):
+        return self.cleaned_data.get("carrier") or "In-house fleet"
+
 
 class ProfileSettingsForm(forms.ModelForm):
     timezone = forms.ChoiceField(
