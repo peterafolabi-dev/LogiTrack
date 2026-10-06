@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.utils import timezone
 
-from .models import FAILURE_REASON_CHOICES, Profile, Shipment, StatusUpdate
+from .models import FAILURE_REASON_CHOICES, Profile, Shipment, StatusUpdate, STATUS_CHOICES
 
 MAX_SHIPMENT_IMPORT_BYTES = 5 * 1024 * 1024
 
@@ -281,7 +281,7 @@ class ShipmentStatusForm(forms.ModelForm):
         self.shipment = shipment
         super().__init__(*args, **kwargs)
         valid = shipment.get_next_statuses()
-        self.fields["status"].choices = [(choice, label) for choice, label in Shipment.STATUS_CHOICES if choice in valid]
+        self.fields["status"].choices = [(choice, label) for choice, label in STATUS_CHOICES if choice in valid]
 
         base_class = "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition duration-200 placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900"
         for name, field in self.fields.items():
