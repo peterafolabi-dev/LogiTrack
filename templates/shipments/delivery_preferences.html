@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Delivery Choices | LogiTrack{% endblock %}
+{% block site_header %}{% endblock site_header %}
+
+{% block content %}
+<main class="-mx-4 -my-8 min-h-screen bg-[#f7f9fc] px-4 py-10 text-slate-900 sm:-mx-6 sm:px-6 sm:py-16 lg:-mx-8 lg:px-8">
+  <div class="mx-auto max-w-xl">
+    <header class="mb-8 flex items-center gap-3">
+      <span class="grid h-10 w-10 place-items-center rounded-lg bg-emerald-700 text-white" aria-hidden="true">
+        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h11v11H3zM14 11h4l3 3v4h-7z"/><circle cx="7.5" cy="18" r="1.5"/><circle cx="17.5" cy="18" r="1.5"/></svg>
+      </span>
+      <div>
+        <p class="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-800">LogiTrack / Recipient</p>
+        <p class="text-xs text-slate-500">Secure delivery preferences</p>
+      </div>
+    </header>
+
+    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_50px_rgba(15,23,42,0.07)]">
+      <div class="border-b border-slate-100 p-6 sm:p-8">
+        <p class="font-mono text-[10px] uppercase tracking-[0.16em] text-slate-400">Shipment {{ shipment.tracking_number }}</p>
+        <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Delivery choices</h1>
+        <p class="mt-2 text-sm leading-6 text-slate-600">Add a safe drop-off instruction or request another delivery date. Date changes are requests for the delivery team to review, not confirmed appointments.</p>
+      </div>
+
+      {% if preference_request.submitted_at %}
+        <div class="p-6 sm:p-8" role="status">
+          <div class="flex gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+            <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-emerald-700 text-sm font-bold text-white" aria-hidden="true">✓</span>
+            <div>
+              <h2 class="text-sm font-semibold text-emerald-950">Your preferences were sent</h2>
+              <p class="mt-1 text-xs leading-5 text-emerald-900">The delivery team will review your request. A requested date is not confirmed until they update you.</p>
+            </div>
+          </div>
+        </div>
+      {% elif shipment_closed %}
+        <div class="p-6 sm:p-8" role="status">
+          <p class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">This shipment is already finalized, so new delivery preferences can’t be submitted.</p>
+        </div>
+      {% else %}
+        <form method="post" class="space-y-6 p-6 sm:p-8">
+          {% csrf_token %}
+          {% if form.non_field_errors %}<div class="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+
+          <div>
+            <label for="{{ form.delivery_instructions.id_for_label }}" class="block text-sm font-semibold text-slate-900">{{ form.delivery_instructions.label }}</label>
+            {{ form.delivery_instructions }}
+            <p class="mt-1.5 text-xs leading-5 text-slate-500">Do not include gate codes, passwords, or other secrets.</p>
+            {% for error in form.delivery_instructions.errors %}<p class="mt-1 text-xs text-rose-700">{{ error }}</p>{% endfor %}
+          </div>
+
+          <div>
+            <label for="{{ form.requested_delivery_date.id_for_label }}" class="block text-sm font-semibold text-slate-900">{{ form.requested_delivery_date.label }} <span class="font-normal text-slate-500">(optional)</span></label>
+            {{ form.requested_delivery_date }}
+            {% for error in form.requested_delivery_date.errors %}<p class="mt-1 text-xs text-rose-700">{{ error }}</p>{% endfor %}
+          </div>
+
+          <button type="submit" class="inline-flex w-full items-center justify-center rounded-lg bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">Send delivery preferences</button>
+          <p class="text-center text-[11px] leading-5 text-slate-500">This secure link expires {{ preference_request.expires_at|date:'M j, Y' }} and can be used once.</p>
+        </form>
+      {% endif %}
+    </section>
+
+    <p class="mt-5 text-center text-[11px] text-slate-400">If you did not expect this message, you can close this page.</p>
+  </div>
+</main>
+{% endblock %}

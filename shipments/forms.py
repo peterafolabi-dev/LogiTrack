@@ -53,6 +53,17 @@ class DeliveryPreferenceForm(forms.Form):
         widget=forms.DateInput(attrs={"type": "date"}),
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["delivery_instructions"].widget.attrs["class"] = (
+            "mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 "
+            "text-sm text-slate-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
+        )
+        self.fields["requested_delivery_date"].widget.attrs["class"] = (
+            "mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 "
+            "text-sm text-slate-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
+        )
+
     def clean_requested_delivery_date(self):
         requested_date = self.cleaned_data.get("requested_delivery_date")
         if requested_date:
