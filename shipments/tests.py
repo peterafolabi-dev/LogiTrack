@@ -378,6 +378,26 @@ class EnterpriseSupplyChainTests(TestCase):
         response = self.client.get(reverse("shipments_list"))
         self.assertNotContains(response, self.shipment_a.tracking_number)
 
+    def test_shipment_detail_displays_recipient_delivery_preferences(self):
+        token = secrets.token_urlsafe(32)
+        DeliveryPreferenceRequest.objects.create(
+            shipment=self.shipment_a,
+            token_digest=hashlib.sha256(token.encode("utf-8")).hexdigest(),
+            expires_at=timezone.now() + timedelta(days=7),
+            delivery_instructions="Leave at the side entrance.",
+            requested_delivery_date=timezone.localdate() + timedelta(days=2),
+            submitted_at=timezone.now(),
+            sent_at=timezone.now(),
+        )
+        self.client.force_login(self.user_a)
+
+        response = self.client.get(reverse("shipment_detail", args=[self.shipment_a.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Recipient delivery choices")
+        self.assertContains(response, "Leave at the side entrance.")
+        self.assertContains(response, "Review and update the ETA if approved.")
+
     def test_delivery_pin_generation_and_verification(self):
         """Ensures 4-digit PIN is generated, hashed, and required for delivery."""
         self.assertTrue(self.shipment_a.delivery_pin)
