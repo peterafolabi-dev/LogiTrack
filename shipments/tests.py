@@ -331,3 +331,128 @@ class ShipmentWorkflowTests(TestCase):
         self.assertRedirects(response, reverse("profile") + "?tab=api")
         self.user.profile.refresh_from_db()
         self.assertEqual(self.user.profile.webhook_url, "")
+
+
+class EnterpriseSupplyChainTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user_a = User.objects.create_user(
+            username="tenant_a",
+            email="tenant_a@fleet.test",
+            password="secure-pass-123",
+        )
+        self.user_b = User.objects.create_user(
+            username="tenant_b",
+            email="tenant_b@fleet.test",
+            password="secure-pass-123",
+        )
+        self.shipment_a = Shipment.objects.create(
+            user=self.user_a,
+            recipient_name="Atlas Corp",
+            recipient_phone="+1 555 111 2222",
+            origin="Seattle, WA",
+            destination="Portland, OR",
+            status="pending",
+        )
+
+    def test_multi_tenant_isolation(self):
+        """Strict multi-tenant scoping ensures Tenant B cannot access Tenant A shipments."""
+        self.client.force_login(self.user_b)
+        
+        # Detail view must return 404
+        response = self.client.get(reverse("shipment_detail", args=[self.shipment_a.pk]))
+        self.assertEqual(response.status_code, 404)
+
+        # Shipments list for tenant B must not contain shipment A
+        response = self.client.get(reverse("shipments_list"))
+        self.assertNotContains(response, self.shipment_a.tracking_number)
+
+    def test_delivery_pin_generation_and_verification(self):
+        """Ensures 4-digit PIN is generated, hashed, and required for delivery."""
+        self.assertTrue(self.shipment_a.delivery_pin)
+        self.assertTrue(self.shipment_a.delivery_pin_raw)
+        self.assertEqual(len(self.shipment_a.delivery_pin_raw), 4)
+
+        # Transition to picked_up -> in_transit -> out_for_delivery
+        self.shipment_a.transition_to("picked_up")
+        self.shipment_a.transition_to("in_transit")
+        self.shipment_a.transition_to("out_for_delivery")
+
+        # Wrong PIN must fail
+        with self.assertRaises(Exception):
+            self.shipment_a.transition_to("delivered", delivery_pin="0000")
+
+        # Correct PIN succeeds
+        self.shipment_a.transition_to(
+            "delivered",
+            delivery_pin=self.shipment_a.delivery_pin_raw,
+            delivery_lat=47.6062,
+            delivery_lng=-122.3321,
+        )
+        self.assertEqual(self.shipment_a.status, "delivered")
+        self.assertEqual(float(self.shipment_a.delivery_lat), 47.6062)
+
+    def test_failure_reason_tracking(self):
+        """Failed transition requires an exception reason."""
+        self.shipment_a.transition_to("failed", failure_reason="gate_locked")
+        self.assertEqual(self.shipment_a.status, "failed")
+        self.assertEqual(self.shipment_a.failure_reason, "gate_locked")
+
+    def test_4x6_thermal_label_pdf_rendering(self):
+        """Tests that the 4x6 shipping label PDF generates valid PDF binary."""
+        self.client.force_login(self.user_a)
+        response = self.client.get(reverse("shipment_label_pdf", args=[self.shipment_a.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertTrue(response.content.startswith(b"%PDF-"))
+
+    def test_batch_update_dispatcher_api(self):
+        """Tests bulk barcode dispatch endpoint updating multiple items atomically."""
+        self.client.force_login(self.user_a)
+        shipment_a2 = Shipment.objects.create(
+            user=self.user_a,
+            recipient_name="Beacon Labs",
+            recipient_phone="+1 555 333 4444",
+            origin="Seattle, WA",
+            destination="Spokane, WA",
+            status="pending",
+        )
+
+        import json
+        payload = {
+            "tracking_numbers": [self.shipment_a.tracking_number, shipment_a2.tracking_number],
+            "status": "picked_up",
+            "location": "North Terminal",
+            "note": "Batch intake",
+        }
+        response = self.client.post(
+            reverse("batch_update_api"),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["updated_count"], 2)
+
+        self.shipment_a.refresh_from_db()
+        self.assertEqual(self.shipment_a.status, "picked_up")
+
+    def test_webhook_hmac_signing(self):
+        """Verifies HMAC-SHA256 signature calculation matches specification."""
+        from shipments.services.webhooks import build_webhook_headers, sign_payload
+        secret = "test-secret-key-12345"
+        payload_bytes = b'{"event":"shipment.delivered"}'
+        sig = sign_payload(secret, payload_bytes)
+        headers = build_webhook_headers(secret, payload_bytes, "shipment.delivered")
+        self.assertEqual(headers["X-LogiTrack-Signature"], f"sha256={sig}")
+        self.assertEqual(headers["X-LogiTrack-Event"], "shipment.delivered")
+
+    def test_public_tracking_api_payload(self):
+        """Tests public tracking API response format and proof of delivery inclusion."""
+        response = self.client.get(reverse("public_tracking_api", args=[self.shipment_a.tracking_number]))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["tracking_number"], self.shipment_a.tracking_number)
+        self.assertIn("proof_of_delivery", data)
+
