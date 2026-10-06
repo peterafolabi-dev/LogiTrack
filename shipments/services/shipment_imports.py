@@ -2,6 +2,7 @@ import csv
 import io
 import logging
 import re
+from datetime import datetime
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -26,9 +27,21 @@ def _normalize_header(header):
     return re.sub(r"\s+", "_", (header or "").strip().casefold())
 
 
+def _discard_source_file(batch):
+    if not batch.source_file:
+        return
+    try:
+        batch.source_file.delete(save=False)
+    except Exception:
+        logger.warning("Could not delete source CSV for shipment import %s", batch.pk, exc_info=True)
+        return
+    batch.source_file = ""
+    batch.save(update_fields=["source_file", "updated_at"])
+
+
 def validate_shipment_import(batch_id):
     batch = ShipmentImportBatch.objects.select_related("business").get(pk=batch_id)
-    if batch.status != "queued":
+    if batch.status not in {"queued", "validating"}:
         return batch.status
 
     batch.status = "validating"
@@ -123,38 +136,41 @@ def validate_shipment_import(batch_id):
                 row_spec["status"] = "invalid"
                 row_spec["error_message"] = "Customer reference already exists in this business."
 
-        ShipmentImportRow.objects.bulk_create(
-            [ShipmentImportRow(**row_spec) for row_spec in row_specs],
-            batch_size=500,
-        )
         valid_count = sum(row["status"] == "pending" for row in row_specs)
         invalid_count = len(row_specs) - valid_count
-        batch.total_rows = len(row_specs)
-        batch.valid_rows = valid_count
-        batch.failed_rows = invalid_count
-        batch.status = "ready" if valid_count else "completed_with_errors"
-        batch.save(
-            update_fields=[
-                "total_rows",
-                "valid_rows",
-                "failed_rows",
-                "status",
-                "updated_at",
-            ]
-        )
-        batch.source_file.delete(save=False)
+        with transaction.atomic():
+            ShipmentImportRow.objects.bulk_create(
+                [ShipmentImportRow(**row_spec) for row_spec in row_specs],
+                batch_size=500,
+            )
+            batch.total_rows = len(row_specs)
+            batch.valid_rows = valid_count
+            batch.failed_rows = invalid_count
+            batch.status = "ready" if valid_count else "completed_with_errors"
+            batch.save(
+                update_fields=[
+                    "total_rows",
+                    "valid_rows",
+                    "failed_rows",
+                    "status",
+                    "updated_at",
+                ]
+            )
+        _discard_source_file(batch)
         return batch.status
     except (UnicodeDecodeError, csv.Error, OSError, ValueError, ValidationError) as exc:
         logger.info("Shipment import %s validation failed: %s", batch_id, exc)
         batch.status = "failed"
         batch.error_message = str(exc)[:2000]
         batch.save(update_fields=["status", "error_message", "updated_at"])
+        _discard_source_file(batch)
         return batch.status
     except Exception:
         logger.exception("Unexpected validation failure for shipment import %s", batch_id)
         batch.status = "failed"
         batch.error_message = "The CSV could not be validated. Upload it again or contact support."
         batch.save(update_fields=["status", "error_message", "updated_at"])
+        _discard_source_file(batch)
         return batch.status
 
 
@@ -167,8 +183,8 @@ def process_shipment_import(batch_id):
     batch.error_message = ""
     batch.save(update_fields=["status", "error_message", "updated_at"])
 
-    pending_rows = batch.rows.filter(status="pending").values_list("pk", flat=True)
-    for row_id in pending_rows.iterator(chunk_size=200):
+    pending_rows = list(batch.rows.filter(status="pending").values_list("pk", flat=True))
+    for row_id in pending_rows:
         try:
             with transaction.atomic():
                 row = ShipmentImportRow.objects.select_for_update().get(pk=row_id)
@@ -192,7 +208,7 @@ def process_shipment_import(batch_id):
                     continue
 
                 eta_value = payload.get("estimated_delivery")
-                eta = timezone.datetime.fromisoformat(eta_value) if eta_value else None
+                eta = datetime.fromisoformat(eta_value) if eta_value else None
                 shipment = Shipment.objects.create(
                     user=batch.user,
                     business=batch.business,

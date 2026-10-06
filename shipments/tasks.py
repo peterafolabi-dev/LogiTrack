@@ -116,3 +116,17 @@ def queue_shipment_webhook(shipment_id: int, event_type: str):
         shipment_id=shipment.id,
     )
 
+
+@shared_task(bind=True, max_retries=3)
+def validate_shipment_import_task(self, batch_id):
+    from .services.shipment_imports import validate_shipment_import
+
+    return validate_shipment_import(batch_id)
+
+
+@shared_task(bind=True, max_retries=3)
+def process_shipment_import_task(self, batch_id):
+    from .services.shipment_imports import process_shipment_import
+
+    return process_shipment_import(batch_id)
+

@@ -18,8 +18,21 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
-from .forms import ProfileSettingsForm, ShipmentForm, ShipmentStatusForm, SignUpForm
-from .models import Business, Shipment, StatusUpdate, WebhookDeliveryLog, STATUS_CHOICES
+from .forms import (
+    ProfileSettingsForm,
+    ShipmentForm,
+    ShipmentImportUploadForm,
+    ShipmentStatusForm,
+    SignUpForm,
+)
+from .models import (
+    Business,
+    Shipment,
+    ShipmentImportBatch,
+    StatusUpdate,
+    WebhookDeliveryLog,
+    STATUS_CHOICES,
+)
 from .services.labels import generate_thermal_label_pdf
 
 
@@ -281,6 +294,91 @@ def shipment_create(request):
     else:
         form = ShipmentForm()
     return render(request, "shipments/form.html", {"form": form, "shipment": None, "editing": False})
+
+
+@login_required
+def shipment_import_create(request):
+    business = request.user.profile.get_or_create_business()
+    if request.method == "POST":
+        form = ShipmentImportUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            batch = ShipmentImportBatch.objects.create(
+                business=business,
+                user=request.user,
+                source_file=form.cleaned_data["csv_file"],
+            )
+            from .tasks import validate_shipment_import_task
+
+            transaction.on_commit(lambda: validate_shipment_import_task.delay(batch.pk))
+            messages.success(request, "CSV uploaded. Validation is running in the background.")
+            return redirect("shipment_import_detail", pk=batch.pk)
+    else:
+        form = ShipmentImportUploadForm()
+
+    recent_imports = ShipmentImportBatch.objects.filter(business=business)[:10]
+    return render(
+        request,
+        "shipments/import.html",
+        {"form": form, "recent_imports": recent_imports},
+    )
+
+
+@login_required
+def shipment_import_template(request):
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="logitrack-shipment-import-template.csv"'
+    writer = csv.writer(response)
+    writer.writerow([
+        "customer_reference",
+        "recipient_name",
+        "recipient_phone",
+        "origin",
+        "destination",
+        "carrier",
+        "estimated_delivery",
+        "description",
+    ])
+    return response
+
+
+@login_required
+def shipment_import_detail(request, pk):
+    business = request.user.profile.get_or_create_business()
+    batch = get_object_or_404(ShipmentImportBatch, pk=pk, business=business)
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "confirm" and batch.status == "ready" and batch.valid_rows:
+            with transaction.atomic():
+                batch.status = "queued"
+                batch.save(update_fields=["status", "updated_at"])
+                from .tasks import process_shipment_import_task
+
+                transaction.on_commit(lambda: process_shipment_import_task.delay(batch.pk))
+            messages.success(request, "Valid rows queued for shipment creation.")
+        elif (
+            action == "retry_failed"
+            and batch.status in {"completed_with_errors", "failed"}
+            and batch.rows.filter(status="failed").exists()
+        ):
+            with transaction.atomic():
+                batch.rows.filter(status="failed").update(status="pending", error_message="")
+                batch.status = "queued"
+                batch.save(update_fields=["status", "updated_at"])
+                from .tasks import process_shipment_import_task
+
+                transaction.on_commit(lambda: process_shipment_import_task.delay(batch.pk))
+            messages.success(request, "Failed rows queued for retry.")
+        else:
+            messages.error(request, "This import cannot perform that action in its current state.")
+        return redirect("shipment_import_detail", pk=batch.pk)
+
+    page_obj = Paginator(batch.rows.select_related("shipment"), 50).get_page(request.GET.get("page"))
+    return render(
+        request,
+        "shipments/import_detail.html",
+        {"batch": batch, "page_obj": page_obj},
+    )
 
 
 @login_required

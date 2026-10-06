@@ -11,6 +11,7 @@
         <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
         Batch Scanner
       </a>
+      <a href="{% url 'shipment_import_create' %}" class="rounded-lg border border-zinc-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50">Import CSV</a>
       <details class="relative"><summary class="cursor-pointer list-none rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50">Export manifest ▾</summary><div class="absolute right-0 z-10 mt-1 min-w-36 overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 shadow-lg"><a href="?export=csv{% if query %}&q={{ query|urlencode }}{% endif %}{% if status %}&status={{ status }}{% endif %}" class="block px-3 py-2 text-xs hover:bg-zinc-50">Download CSV</a><a href="?export=json{% if query %}&q={{ query|urlencode }}{% endif %}{% if status %}&status={{ status }}{% endif %}" class="block px-3 py-2 text-xs hover:bg-zinc-50">Download JSON</a></div></details>
       <a href="{% url 'shipment_create' %}" class="rounded-lg bg-zinc-900 px-3.5 py-2.5 text-xs font-semibold text-white transition duration-200 hover:bg-zinc-800">+ New shipment <kbd class="ml-2 rounded border border-white/25 px-1 py-0.5 font-mono text-[9px]">C</kbd></a>
     </div>
