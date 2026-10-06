@@ -233,22 +233,32 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // Populate cameras
-  if (typeof Html5Qrcode !== 'undefined') {
-    Html5Qrcode.getCameras().then(devices => {
-      if (devices && devices.length) {
-        cameraSelect.innerHTML = '';
-        devices.forEach((dev, idx) => {
-          const opt = document.createElement('option');
-          opt.value = dev.id;
-          opt.text = dev.label || `Camera ${idx + 1}`;
-          cameraSelect.appendChild(opt);
-        });
+  async function refreshCameraList(selectedCameraId = '') {
+    if (typeof Html5Qrcode === 'undefined') return;
+
+    try {
+      const devices = await Html5Qrcode.getCameras();
+      cameraSelect.replaceChildren();
+
+      if (!devices || devices.length === 0) {
+        cameraSelect.add(new Option('No cameras found', ''));
+        return;
       }
-    }).catch(err => {
-      console.warn("Camera lookup failed:", err);
-    });
+
+      devices.forEach((device, index) => {
+        cameraSelect.add(new Option(device.label || `Camera ${index + 1}`, device.id));
+      });
+
+      if (selectedCameraId && devices.some(device => device.id === selectedCameraId)) {
+        cameraSelect.value = selectedCameraId;
+      }
+    } catch (error) {
+      console.warn('Camera lookup failed:', error);
+      cameraSelect.replaceChildren(new Option('Allow camera access, then retry', ''));
+    }
   }
+
+  refreshCameraList();
 
   function handleDetectedCode(decodedText) {
     let cleanCode = decodedText.trim();
@@ -327,6 +337,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  cameraSelect.addEventListener('change', async function () {
+    if (!isScanning || !cameraSelect.value) return;
+    await stopScanner();
+    startScanner();
+  });
+
   function startScanner() {
     cameraError.classList.add('hidden');
     if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -362,6 +378,7 @@ document.addEventListener('DOMContentLoaded', function () {
       () => {} // Ignored frame errors
     ).then(() => {
       isScanning = true;
+      refreshCameraList(typeof cameraId === 'string' ? cameraId : '');
       statusBadge.textContent = "Scanner Active";
       statusBadge.className = "text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200";
       btnToggle.textContent = "Stop Scanner";
@@ -378,7 +395,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function stopScanner() {
     if (html5QrCode && isScanning) {
-      html5QrCode.stop().then(() => {
+      return html5QrCode.stop().then(() => {
         isScanning = false;
         btnToggle.textContent = "Start Scanner";
         btnToggle.className = "rounded-full bg-brand-600 px-5 py-2 text-sm font-bold text-white shadow-sm hover:bg-brand-500 transition";
@@ -387,6 +404,7 @@ document.addEventListener('DOMContentLoaded', function () {
         placeholderDiv.classList.remove('hidden');
       });
     }
+    return Promise.resolve();
   }
 
   // Manual entry
