@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load logitrack_tags %}
+
+{% block title %}Operations Command | LogiTrack{% endblock %}
+{% block site_header %}{% endblock site_header %}
+{% block content %}
+<div class="-mx-4 -my-8 min-h-screen bg-[#f7f8fa] text-zinc-900 sm:-mx-6 lg:-mx-8">
+  <header class="sticky top-0 z-20 border-b border-zinc-200 bg-white/95 backdrop-blur">
+    <div class="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
+      <div class="flex min-w-0 items-center gap-3">
+        <a href="{% url 'landing' %}" class="flex shrink-0 items-center gap-2 font-bold tracking-tight"><span class="grid h-8 w-8 place-items-center rounded-lg bg-zinc-950 text-emerald-400">L</span>LogiTrack</a>
+        <span class="hidden h-6 w-px bg-zinc-200 sm:block"></span>
+        <span class="hidden items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-mono text-[9px] font-semibold tracking-wide text-emerald-800 sm:inline-flex"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> PRODUCTION FLEET</span>
+      </div>
+      <nav class="hidden items-center gap-1 lg:flex" aria-label="Operations">
+        <a href="{% url 'dashboard' %}" class="rounded-lg bg-zinc-100 px-3 py-2 text-xs font-semibold text-zinc-900">Overview</a>
+        <a href="#live-shipments" class="rounded-lg px-3 py-2 text-xs text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900">Live telemetry</a>
+        <a href="{% url 'shipments_list' %}" class="rounded-lg px-3 py-2 text-xs text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900">Shipments</a>
+        <a href="{% url 'shipments_list' %}?status=in_transit" class="rounded-lg px-3 py-2 text-xs text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900">Couriers</a>
+        <a href="{% url 'shipments_list' %}?range=7d" class="rounded-lg px-3 py-2 text-xs text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900">Analytics</a>
+      </nav>
+      <div class="flex shrink-0 items-center gap-2">
+        <a href="{% url 'shipments_list' %}" class="hidden items-center gap-5 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[11px] text-zinc-400 transition hover:border-zinc-300 sm:flex"><span>⌘K&nbsp; Search shipments or nodes...</span><span class="font-mono text-[9px]">↵</span></a>
+        <a href="{% url 'shipments_list' %}?status=failed" class="relative rounded-lg border border-zinc-200 p-2 text-zinc-500 hover:bg-zinc-50" aria-label="View shipment alerts"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>{% if status_counts.failed %}<span class="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-600 px-1 font-mono text-[8px] text-white">{{ status_counts.failed }}</span>{% endif %}</a>
+        <a href="{% url 'profile' %}" class="flex items-center gap-2 rounded-lg border border-zinc-200 p-1.5 pr-2.5 transition hover:bg-zinc-50"><span class="grid h-7 w-7 place-items-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-900">{{ request.user.username|slice:":1"|upper }}</span><span class="hidden text-left sm:block"><span class="block text-[10px] font-semibold text-zinc-800">{{ request.user.get_full_name|default:request.user.username }}</span><span class="block text-[9px] text-zinc-400">Fleet Ops Lead</span></span></a>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:px-8">
+    <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <div><p class="font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-400">Fleet dispatch / Overview{% if organization %} / {{ organization }}{% endif %}</p><h1 class="mt-2 text-3xl font-semibold tracking-[-0.05em] text-zinc-950">Operations Command</h1><p class="mt-1 text-xs text-zinc-500">Live fleet dispatch, consignment statuses, and delivery exceptions.</p></div>
+      <div class="flex flex-wrap items-center gap-2">
+        <form method="get"><label for="dashboard-range" class="sr-only">Dashboard date range</label><select id="dashboard-range" name="range" onchange="this.form.submit()" class="rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-xs text-zinc-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15"><option value="24h" {% if date_range == '24h' %}selected{% endif %}>Last 24 hours</option><option value="today" {% if date_range == 'today' %}selected{% endif %}>Today</option><option value="all" {% if date_range == 'all' %}selected{% endif %}>All time</option></select></form>
+        <a href="{% url 'shipments_list' %}?export=csv" class="rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50">Export CSV / API</a>
+        <a href="{% url 'shipment_create' %}" class="rounded-lg bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700">+ Create shipment <kbd class="ml-2 rounded border border-white/25 px-1 py-0.5 font-mono text-[9px]">N</kbd></a>
+      </div>
+    </div>
+
+    <section aria-label="Shipment status metrics" class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      {% for value, label in shipment_status_choices %}
+        <a href="{% url 'shipments_list' %}?status={{ value }}" class="group rounded-xl border border-zinc-200 bg-white p-3.5 transition duration-200 hover:border-zinc-300 hover:shadow-sm">
+          <div class="flex items-center justify-between gap-2"><span class="truncate text-[9px] font-semibold uppercase tracking-[0.12em] text-zinc-500">{{ label }}</span><span class="h-2 w-2 rounded-full {% if value == 'pending' %}bg-slate-400{% elif value == 'picked_up' %}bg-sky-500{% elif value == 'in_transit' %}bg-indigo-500{% elif value == 'out_for_delivery' %}bg-emerald-500{% elif value == 'delivered' %}bg-teal-500{% else %}bg-rose-500{% endif %}"></span></div>
+          <p class="mt-3 text-3xl font-semibold tracking-[-0.05em] text-zinc-950">{{ status_counts|get_item:value|default:0 }}</p>
+          <p class="mt-1 text-[9px] text-zinc-400">in selected period</p>
+        </a>
+      {% endfor %}
+    </section>
+
+    <section id="live-shipments" class="mt-6 overflow-hidden rounded-xl border border-zinc-200 bg-white">
+      <div class="flex flex-col justify-between gap-3 border-b border-zinc-200 px-4 py-4 sm:flex-row sm:items-center sm:px-5">
+        <div><h2 class="text-sm font-semibold tracking-tight text-zinc-900">Live shipment console</h2><p class="mt-0.5 text-[10px] text-zinc-400">Latest fleet activity for the selected period</p></div>
+        <div class="flex flex-wrap items-center gap-2">
+          <form action="{% url 'shipments_list' %}" method="get" class="flex">
+            <label for="dashboard-search" class="sr-only">Search shipments</label><input id="dashboard-search" name="q" placeholder="Filter tracking, recipient, destination..." class="w-52 rounded-l-lg border border-r-0 border-zinc-200 px-3 py-2 text-[11px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15 sm:w-64" />
+            <button class="rounded-r-lg border border-zinc-200 px-3 text-xs text-zinc-500 hover:bg-zinc-50">Search</button>
+          </form>
+          <div class="flex rounded-lg border border-zinc-200 p-0.5 text-[10px]"><span class="rounded-md bg-zinc-100 px-2.5 py-1.5 font-semibold text-zinc-800">Table</span><a href="{% url 'shipments_list' %}?view=map" class="px-2.5 py-1.5 text-zinc-500 hover:text-zinc-900">Live map</a></div>
+        </div>
+      </div>
+
+      {% if latest_shipments %}
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[850px] text-left">
+            <thead class="bg-zinc-50/80 text-[9px] font-semibold uppercase tracking-[0.12em] text-zinc-400"><tr><th class="px-5 py-3">Tracking ID</th><th class="px-4 py-3">Destination hub</th><th class="px-4 py-3">Carrier / fleet</th><th class="px-4 py-3">Stage</th><th class="px-4 py-3">ETA / update</th><th class="px-5 py-3 text-right">Actions</th></tr></thead>
+            <tbody class="divide-y divide-zinc-100">
+              {% for shipment in latest_shipments %}
+                <tr class="transition duration-200 hover:bg-zinc-50/70">
+                  <td class="px-5 py-3.5"><a href="{% url 'shipment_detail' shipment.pk %}" class="font-mono text-[11px] font-semibold text-zinc-800 hover:text-emerald-700">{{ shipment.tracking_number }}</a><p class="mt-0.5 text-[10px] text-zinc-400">{{ shipment.recipient_name }}</p></td>
+                  <td class="px-4 py-3.5 text-xs text-zinc-700">{{ shipment.destination }}</td>
+                  <td class="px-4 py-3.5 text-xs text-zinc-600">{{ shipment.carrier }}</td>
+                  <td class="px-4 py-3.5"><span class="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-medium {% if shipment.status == 'in_transit' %}bg-indigo-50 text-indigo-700{% elif shipment.status == 'out_for_delivery' %}bg-emerald-50 text-emerald-700{% elif shipment.status == 'delivered' %}bg-teal-50 text-teal-700{% elif shipment.status == 'failed' %}bg-rose-50 text-rose-700{% elif shipment.status == 'picked_up' %}bg-sky-50 text-sky-700{% else %}bg-zinc-100 text-zinc-600{% endif %}"><span class="h-1.5 w-1.5 rounded-full {% if shipment.status == 'in_transit' %}bg-indigo-500{% elif shipment.status == 'out_for_delivery' %}bg-emerald-500{% elif shipment.status == 'delivered' %}bg-teal-500{% elif shipment.status == 'failed' %}bg-rose-500{% elif shipment.status == 'picked_up' %}bg-sky-500{% else %}bg-zinc-400{% endif %}"></span>{{ shipment.get_status_display }}</span></td>
+                  <td class="px-4 py-3.5 text-[10px] text-zinc-500">{% if shipment.estimated_delivery %}{{ shipment.estimated_delivery|date:'M d, H:i' }}{% else %}Updated {{ shipment.updated_at|date:'M d, H:i' }}{% endif %}</td>
+                  <td class="px-5 py-3.5 text-right"><a href="{% url 'shipment_detail' shipment.pk %}" class="text-[10px] font-semibold text-emerald-700 hover:text-emerald-800">View GPS →</a></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 bg-zinc-50/70 px-4 py-3 text-[10px] text-zinc-500 sm:px-5"><span>Showing {{ latest_shipments|length }} recent shipments from {{ status_counts.all|default:0 }} in period</span><a href="{% url 'shipments_list' %}" class="font-semibold text-emerald-700 hover:text-emerald-800">Open shipments directory →</a></div>
+      {% else %}
+        <div class="mx-auto max-w-xl px-5 py-12 text-center">
+          <span class="relative mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-emerald-100 bg-emerald-50 text-emerald-700"><span class="absolute inset-0 rounded-2xl border border-emerald-300/60 animate-ping opacity-20"></span><svg class="relative h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 7h18v14H3zM3 7l3-4h12l3 4M8 12h8m-8 4h5"/></svg></span>
+          <h3 class="mt-5 text-lg font-semibold tracking-tight text-zinc-900">Ready to launch your first consignment?</h3>
+          <p class="mx-auto mt-2 max-w-md text-xs leading-5 text-zinc-500">Create a live delivery run or populate mock fleet data to explore your operations console.</p>
+          <div class="mt-5 flex flex-wrap justify-center gap-2">
+            <a href="{% url 'shipment_create' %}" class="rounded-lg bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white transition hover:bg-emerald-700">+ Create first shipment</a>
+            <form method="post" action="{% url 'populate_demo_telemetry' %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'dashboard' %}" /><button class="rounded-lg border border-zinc-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50">⚡ Populate demo telemetry</button></form>
+          </div>
+        </div>
+      {% endif %}
+    </section>
+  </main>
+</div>
+{% endblock %}

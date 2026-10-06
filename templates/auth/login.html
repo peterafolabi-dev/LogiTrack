@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign in | LogiTrack{% endblock %}
+{% block site_header %}{% endblock site_header %}
+
+{% block content %}
+<div class="-mx-4 -my-8 min-h-screen bg-white text-zinc-950 sm:-mx-6 lg:-mx-8">
+  <div class="grid min-h-screen lg:grid-cols-[1.1fr_0.9fr]">
+    <aside class="auth-showcase relative hidden overflow-hidden bg-[#090A0F] text-white lg:flex lg:flex-col lg:justify-between lg:px-12 lg:py-10 xl:px-20">
+      <div class="auth-showcase-glow pointer-events-none absolute inset-0" aria-hidden="true"></div>
+      <a href="{% url 'landing' %}" class="relative z-10 inline-flex w-fit items-center gap-3 text-sm font-bold tracking-[0.12em]">
+        <span class="grid h-9 w-9 place-items-center rounded-xl border border-emerald-300/20 bg-emerald-300/[0.08] text-emerald-300">
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 17.5 9.5 6l5 12 2.5-6 3 5.5"/><path d="M3 20h18"/></svg>
+        </span> LOGI<span class="-ml-3 text-emerald-400">TRACK</span>
+      </a>
+
+      <div class="relative z-10 my-auto max-w-xl py-20">
+        <p class="mb-5 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-emerald-300"><span class="status-led"></span> Fleet command / secure access</p>
+        <h1 class="text-5xl font-semibold leading-[1.03] tracking-[-0.06em] xl:text-6xl">Orchestrate your global supply chain <span class="text-emerald-300">in real time.</span></h1>
+        <p class="mt-5 max-w-lg text-sm leading-7 text-slate-400">One precise view of every carrier, handoff, and delivery mile. Your operations are ready when you are.</p>
+
+        <div class="auth-console mt-10 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035] p-4 shadow-2xl shadow-black/30 backdrop-blur-md">
+          <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+            <div class="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.15em] text-slate-500"><span class="flex gap-1"><i class="h-1.5 w-1.5 rounded-full bg-slate-700"></i><i class="h-1.5 w-1.5 rounded-full bg-slate-700"></i><i class="h-1.5 w-1.5 rounded-full bg-slate-700"></i></span> Live node telemetry</div>
+            <span class="flex items-center gap-1.5 font-mono text-[9px] text-emerald-300"><span class="status-led"></span> LIVE</span>
+          </div>
+          <p class="mt-2 text-center text-[10px] text-zinc-400">Google and enterprise SSO are not enabled for this deployment.</p>
+          <div class="relative mt-4 h-32 overflow-hidden rounded-xl border border-white/[0.06] bg-[#0b1117]">
+            <svg class="absolute inset-0 h-full w-full" viewBox="0 0 520 128" preserveAspectRatio="none" aria-hidden="true">
+              <defs><pattern id="auth-grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#94a3b8" stroke-opacity=".08" stroke-width=".7"/></pattern><linearGradient id="auth-route"><stop stop-color="#10b981" stop-opacity=".35"/><stop offset="1" stop-color="#6ee7b7"/></linearGradient></defs>
+              <rect width="520" height="128" fill="url(#auth-grid)"/>
+              <path d="M38 94C115 86 123 37 211 51S329 102 382 62 448 44 482 29" fill="none" stroke="#10b981" stroke-opacity=".12" stroke-width="10"/>
+              <path d="M38 94C115 86 123 37 211 51S329 102 382 62 448 44 482 29" fill="none" stroke="url(#auth-route)" stroke-width="2" stroke-dasharray="5 6"/>
+              <circle cx="38" cy="94" r="5" fill="#a7f3d0"/><circle cx="211" cy="51" r="3.5" fill="#0b1117" stroke="#34d399" stroke-width="1.5"/><circle cx="382" cy="62" r="3.5" fill="#0b1117" stroke="#34d399" stroke-width="1.5"/><circle cx="482" cy="29" r="5" fill="#34d399"/>
+            </svg>
+            <span class="absolute bottom-2 left-3 font-mono text-[8px] text-slate-400">SEA · SEATTLE</span><span class="absolute right-3 top-2 font-mono text-[8px] text-emerald-200">ORD · CHICAGO</span>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-3 pt-4">
+            <div><p class="font-mono text-[9px] uppercase tracking-[0.12em] text-slate-500">Active node</p><p class="mt-1 font-mono text-xs font-semibold text-white">LT-9401 <span class="font-sans font-normal text-slate-500">· En Route to ORD Hub</span></p></div>
+            <span class="rounded-full border border-emerald-400/15 bg-emerald-400/[0.08] px-2.5 py-1 font-mono text-[9px] text-emerald-300">IN TRANSIT</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="relative z-10 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.08] pt-5 font-mono text-[9px] uppercase tracking-[0.12em] text-slate-500">
+        <span class="flex items-center gap-2"><svg class="h-3.5 w-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.9 8.2 7 10 4.1-1.8 7-5.4 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg> End-to-end encrypted telemetry</span>
+        <span class="rounded border border-white/10 px-2 py-1">SOC 2 TYPE II</span>
+      </div>
+    </aside>
+
+    <div class="flex min-h-screen items-center justify-center px-5 py-10 sm:px-10 lg:px-12">
+      <div class="w-full max-w-[430px]">
+        <a href="{% url 'landing' %}" class="mb-10 inline-flex items-center gap-2 text-xs font-semibold text-zinc-500 transition duration-200 hover:text-zinc-900 lg:hidden"><span class="text-emerald-600">◈</span> LOGITRACK</a>
+        <div class="mb-7">
+          <p class="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700">Dispatch console access</p>
+          <h2 class="text-3xl font-semibold tracking-[-0.055em] text-zinc-950 sm:text-[2.15rem]">Welcome back</h2>
+          <p class="mt-2 text-sm leading-6 text-zinc-500">Enter your credentials or access your enterprise fleet portal.</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <button type="button" disabled title="Google sign-in is not configured for this deployment" class="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-xs font-semibold text-zinc-400 transition-all duration-200" aria-disabled="true">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.09-1.92 3.27-4.74 3.27-8.1Z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.65l-3.57-2.77c-.99.66-2.25 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.15v2.84A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M5.84 14.11a6.6 6.6 0 0 1 0-4.22V7.05H2.15a11 11 0 0 0 0 9.9l3.69-2.84Z"/><path fill="#EA4335" d="M12 4.36c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 1.09 14.97 0 12 0a11 11 0 0 0-9.85 7.05l3.69 2.84C6.71 7.29 9.14 4.36 12 4.36Z"/></svg>
+            Google
+          </button>
+          <button type="button" disabled title="Enterprise SSO is not configured for this deployment" class="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-xs font-semibold text-zinc-400 transition-all duration-200" aria-disabled="true">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 21V5l8-3 8 3v16M2 21h20M9 9h.01M15 9h.01M9 13h.01M15 13h.01M10 21v-4h4v4"/></svg> Enterprise SSO
+          </button>
+        </div>
+        <div class="my-6 flex items-center gap-3"><span class="h-px flex-1 bg-zinc-200"></span><span class="font-mono text-[9px] font-medium tracking-[0.13em] text-zinc-400">OR CONTINUE WITH EMAIL</span><span class="h-px flex-1 bg-zinc-200"></span></div>
+
+        <form method="post" class="space-y-5" data-auth-form>
+          {% csrf_token %}
+          <div>
+            <label for="login-username" class="mb-2 block text-xs font-semibold text-zinc-700">Work Email or Username</label>
+            <input id="login-username" name="username" type="text" autocomplete="username" value="{{ request.POST.username|default:'' }}" required autofocus placeholder="you@company.com" class="auth-field w-full rounded-xl border border-zinc-300 bg-white px-3.5 py-3 text-sm text-zinc-900 outline-none transition-all duration-200 placeholder:text-zinc-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15" />
+          </div>
+          <div>
+            <div class="mb-2 flex items-center justify-between"><label for="login-password" class="block text-xs font-semibold text-zinc-700">Password</label><a href="{% url 'password_reset' %}" class="text-xs font-medium text-emerald-700 transition duration-200 hover:text-emerald-800 hover:underline">Forgot password?</a></div>
+            <div class="relative">
+              <input id="login-password" name="password" type="password" autocomplete="current-password" required placeholder="Enter your password" class="auth-field w-full rounded-xl border border-zinc-300 bg-white px-3.5 py-3 pr-12 text-sm text-zinc-900 outline-none transition-all duration-200 placeholder:text-zinc-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15" />
+              <button type="button" data-password-toggle="login-password" class="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-xl text-zinc-400 transition duration-200 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600" aria-label="Show password" aria-pressed="false">
+                <svg data-eye-icon viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+          <label class="flex cursor-pointer items-center gap-2.5 text-xs text-zinc-600"><input name="remember_device" type="checkbox" checked class="h-4 w-4 rounded border-zinc-300 accent-emerald-600 focus:ring-2 focus:ring-emerald-600/20" /> Remember this device for 30 days</label>
+          <button type="submit" data-auth-submit class="group flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-zinc-800 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">
+            Sign In to Dispatch Console <span class="transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true">→</span>
+          </button>
+        </form>
+        <p class="mt-7 text-center text-xs text-zinc-500">Don’t have an account? <a href="{% url 'signup' %}" class="font-semibold text-emerald-700 transition duration-200 hover:text-emerald-800 hover:underline">Create an account →</a></p>
+        <p class="mt-10 text-center font-mono text-[9px] uppercase tracking-[0.1em] text-zinc-400">Protected by encrypted LogiTrack identity</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

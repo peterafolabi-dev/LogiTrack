@@ -1,0 +1,318 @@
+{% extends 'base.html' %}
+
+{% block title %}LogiTrack | Fleet telemetry, in real time{% endblock %}
+
+{% block site_header %}{% endblock site_header %}
+
+{% block content %}
+<div class="-mx-4 -my-8 min-h-screen overflow-x-clip bg-[#090A0F] text-slate-100 sm:-mx-6 lg:-mx-8">
+  <div class="command-grid relative isolate min-h-screen">
+    <div class="command-glow pointer-events-none absolute inset-0 -z-10" aria-hidden="true"></div>
+
+    <div class="border-b border-white/[0.07] bg-black/25">
+      <div class="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-x-8 gap-y-2 px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.12em] text-slate-400 sm:px-8 lg:px-12">
+        <span class="flex items-center gap-2 text-emerald-300"><span class="status-led"></span> Live network</span>
+        <p class="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span class="text-slate-200">42,810</span> active nodes in transit
+          <span class="hidden text-slate-700 sm:inline">/</span>
+          <span class="text-slate-200">99.98%</span> GPS sync
+          <span class="hidden text-slate-700 sm:inline">/</span>
+          avg latency <span class="text-emerald-300">14ms</span>
+        </p>
+        <span class="hidden items-center gap-2 md:flex"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> All systems operational</span>
+      </div>
+    </div>
+
+    <header class="sticky top-0 z-40 mx-auto flex max-w-[1500px] items-center justify-between gap-5 border-b border-white/[0.06] bg-[#090A0F]/90 px-5 py-4 backdrop-blur-xl sm:px-8 lg:px-12">
+      <a href="{% url 'landing' %}" class="group flex shrink-0 items-center gap-3" aria-label="LogiTrack home">
+        <span class="relative grid h-9 w-9 place-items-center rounded-xl border border-emerald-300/25 bg-emerald-300/[0.08] text-emerald-300 shadow-[0_0_24px_rgba(16,185,129,0.12)]">
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 17.5 9.5 6l5 12 2.5-6 3 5.5"/><path d="M3 20h18"/></svg>
+          <span class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-[#090A0F] bg-emerald-400"><span class="status-halo"></span></span>
+        </span>
+        <span class="text-sm font-bold tracking-[0.14em] text-white">LOGI<span class="text-emerald-400">TRACK</span><span class="ml-2 font-mono text-[9px] font-medium tracking-[0.18em] text-slate-500">SYSTEMS</span></span>
+      </a>
+
+      <nav aria-label="Main navigation" class="hidden items-center gap-6 text-xs font-medium text-slate-400 lg:flex">
+        <a href="{% url 'public_tracking' %}" class="transition duration-200 hover:text-white">Track</a>
+        <a href="#telemetry" class="transition duration-200 hover:text-white">Telemetry</a>
+        <a href="#fleet-api" class="transition duration-200 hover:text-white">Fleet API</a>
+        <a href="#docs" class="transition duration-200 hover:text-white">Docs</a>
+        <a href="#enterprise" class="transition duration-200 hover:text-white">Enterprise</a>
+      </nav>
+
+      <div class="flex shrink-0 items-center gap-3">
+        <details class="relative lg:hidden">
+          <summary class="cursor-pointer list-none rounded-lg border border-white/[0.1] px-3 py-2 text-xs font-medium text-slate-300 transition duration-200 hover:bg-white/[0.06]">Menu</summary>
+          <nav aria-label="Mobile navigation" class="absolute right-0 top-full z-50 mt-2 grid min-w-40 gap-1 rounded-xl border border-white/[0.1] bg-[#10141b] p-2 shadow-xl">
+            <a href="{% url 'public_tracking' %}" class="rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-white/[0.06] hover:text-white">Track</a>
+            <a href="#telemetry" class="rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-white/[0.06] hover:text-white">Telemetry</a>
+            <a href="#fleet-api" class="rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-white/[0.06] hover:text-white">Fleet API</a>
+            <a href="#docs" class="rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-white/[0.06] hover:text-white">Docs</a>
+            <a href="#enterprise" class="rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-white/[0.06] hover:text-white">Enterprise</a>
+          </nav>
+        </details>
+        {% if user.is_authenticated %}
+          <a href="{% url 'dashboard' %}" class="hidden text-xs font-medium text-slate-400 transition duration-200 hover:text-white sm:inline">Dashboard</a>
+          <a href="{% url 'shipment_create' %}" class="hidden items-center gap-2 rounded-lg bg-emerald-400 px-3.5 py-2.5 text-xs font-bold text-[#06120D] shadow-[0_0_24px_rgba(16,185,129,0.2)] transition duration-200 hover:bg-emerald-300 sm:inline-flex">Deploy dispatch <span aria-hidden="true">↗</span></a>
+        {% else %}
+          <a href="{% url 'login' %}" class="hidden text-xs font-medium text-slate-400 transition duration-200 hover:text-white sm:inline">Sign in</a>
+          <a href="{% url 'shipment_create' %}" class="hidden items-center gap-2 rounded-lg bg-emerald-400 px-3.5 py-2.5 text-xs font-bold text-[#06120D] shadow-[0_0_24px_rgba(16,185,129,0.2)] transition duration-200 hover:bg-emerald-300 sm:inline-flex">Deploy dispatch <span aria-hidden="true">↗</span></a>
+        {% endif %}
+      </div>
+    </header>
+
+    <main class="mx-auto grid max-w-[1500px] items-center gap-14 px-5 pb-20 pt-10 sm:px-8 sm:pt-16 lg:grid-cols-[1.02fr_0.98fr] lg:gap-12 lg:px-12 lg:pb-28 lg:pt-20">
+      <section aria-labelledby="hero-title" class="relative z-10">
+        <div class="mb-7 inline-flex items-center gap-2.5 rounded-full border border-emerald-300/20 bg-emerald-300/[0.06] px-3.5 py-2 font-mono text-[10px] font-semibold tracking-[0.12em] text-emerald-300 shadow-[0_0_30px_rgba(16,185,129,0.08)]">
+          <span class="relative flex h-2 w-2"><span class="status-halo"></span><span class="relative h-2 w-2 rounded-full bg-emerald-400"></span></span>
+          <span aria-hidden="true">⚡</span> ACTIVE DISPATCH PROTOCOL <span class="text-emerald-100/50">V3.2</span>
+        </div>
+
+        <h1 id="hero-title" class="max-w-3xl text-[clamp(3.3rem,8vw,6.9rem)] font-semibold leading-[0.91] tracking-[-0.075em] text-white">
+          ZERO BLIND SPOTS.<br />
+          <span class="hero-gradient">EVERY MILE</span><br />
+          ACCOUNTED FOR<span class="text-emerald-400">.</span>
+        </h1>
+        <p class="mt-7 max-w-xl text-base leading-7 text-slate-400 sm:text-lg sm:leading-8">
+          Sub-second GPS telemetry, automated chain-of-custody verification, and instant courier dispatch for modern supply chains.
+        </p>
+
+        <form method="get" action="{% url 'public_tracking' %}" class="tracking-command mt-9 max-w-2xl rounded-2xl border border-white/10 bg-[#10141b]/90 p-2 backdrop-blur-md transition duration-200 focus-within:border-emerald-400/60 focus-within:shadow-[0_0_35px_rgba(16,185,129,0.14)] hover:border-white/20">
+          <label for="tracking-number" class="sr-only">Tracking number</label>
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div class="flex min-w-0 flex-1 items-center gap-3 px-3 py-2">
+              <svg class="h-5 w-5 shrink-0 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+              <input id="tracking-number" name="tracking_number" type="text" autocomplete="off" spellcheck="false" placeholder="Enter tracking ID to locate shipment" class="min-w-0 flex-1 bg-transparent py-2 text-sm text-white outline-none placeholder:text-slate-500 sm:text-[15px]" />
+              <span class="hidden shrink-0 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-[10px] text-slate-500 sm:inline">↵ ENTER</span>
+            </div>
+            <div class="flex items-center justify-between gap-2 border-t border-white/[0.07] px-1 pt-2 sm:border-l sm:border-t-0 sm:pl-2 sm:pt-0">
+              <span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-2 font-mono text-[9px] uppercase tracking-wide text-slate-400"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Carrier: Auto-detect</span>
+              <button type="button" data-paste-tracking class="whitespace-nowrap rounded-lg px-2.5 py-2 text-[11px] font-medium text-slate-400 transition duration-200 hover:bg-white/[0.06] hover:text-white">Paste from clipboard</button>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.07] px-3 pt-2.5">
+            <p class="font-mono text-[9px] tracking-wide text-slate-600">ENCRYPTED LOOKUP <span class="px-1.5 text-slate-700">/</span> GLOBAL NETWORK</p>
+            <button type="submit" class="group inline-flex items-center gap-2 rounded-lg bg-emerald-400 px-4 py-2.5 text-xs font-bold text-[#06120D] shadow-[0_4px_20px_rgba(16,185,129,0.16)] transition duration-200 hover:-translate-y-0.5 hover:bg-emerald-300 hover:shadow-[0_7px_26px_rgba(16,185,129,0.3)]">
+              Initialize tracking <span class="inline-block transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true">→</span>
+            </button>
+          </div>
+          <p class="sr-only" data-paste-feedback role="status" aria-live="polite"></p>
+        </form>
+        <div class="mt-4 flex items-center gap-2 font-mono text-[10px] text-slate-600"><span class="rounded border border-white/[0.08] px-1.5 py-0.5">⌘ K</span> <span>to focus tracking</span><span class="mx-1 text-slate-700">·</span><span>Works with any carrier</span></div>
+
+        <div class="mt-12 grid max-w-2xl grid-cols-3 divide-x divide-white/[0.08] border-t border-white/[0.08] pt-5">
+          <div class="pr-3"><p class="font-mono text-xl font-semibold tracking-tight text-white sm:text-2xl">14<span class="text-emerald-400">ms</span></p><p class="mt-1 text-[10px] text-slate-500 sm:text-xs">NETWORK LATENCY</p></div>
+          <div class="px-3 sm:px-5"><p class="font-mono text-xl font-semibold tracking-tight text-white sm:text-2xl">99.98<span class="text-emerald-400">%</span></p><p class="mt-1 text-[10px] text-slate-500 sm:text-xs">GPS UPTIME</p></div>
+          <div class="pl-3 sm:pl-5"><p class="font-mono text-xl font-semibold tracking-tight text-white sm:text-2xl">24<span class="text-emerald-400">/7</span></p><p class="mt-1 text-[10px] text-slate-500 sm:text-xs">FLEET VISIBILITY</p></div>
+        </div>
+      </section>
+
+      <section aria-label="Live shipment telemetry preview" class="relative mx-auto w-full max-w-[650px] lg:ml-auto">
+        <div class="telemetry-frame relative overflow-hidden rounded-[26px] border border-white/[0.11] bg-[#0c1118]/90 p-3 shadow-[0_35px_100px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-4">
+          <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_34%,rgba(16,185,129,0.09),transparent_48%)]" aria-hidden="true"></div>
+          <div class="relative flex items-center justify-between border-b border-white/[0.08] px-2 pb-3">
+            <div class="flex items-center gap-2.5">
+              <span class="flex gap-1.5" aria-hidden="true"><i class="h-1.5 w-1.5 rounded-full bg-slate-700"></i><i class="h-1.5 w-1.5 rounded-full bg-slate-700"></i><i class="h-1.5 w-1.5 rounded-full bg-slate-700"></i></span>
+              <span class="font-mono text-[9px] uppercase tracking-[0.15em] text-slate-500">Fleet telemetry / live view</span>
+            </div>
+            <span class="flex items-center gap-1.5 font-mono text-[9px] text-emerald-300"><span class="status-led"></span> STREAMING</span>
+          </div>
+
+          <div class="telemetry-map relative mt-3 h-[245px] overflow-hidden rounded-2xl border border-white/[0.06] sm:h-[310px]" role="img" aria-label="Illustrated live route map from Seattle to Denver">
+            <div class="map-coordinate absolute left-3 top-3 font-mono text-[8px] leading-4 text-slate-600 sm:left-4 sm:top-4">47°36'22.3"N<br>122°19'48.2"W</div>
+            <div class="absolute right-3 top-3 flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-[#090d13]/80 px-2 py-1 font-mono text-[8px] text-slate-400 sm:right-4 sm:top-4"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> NORTH AMERICA / 04</div>
+            <svg class="absolute inset-0 h-full w-full" viewBox="0 0 600 310" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              <defs>
+                <pattern id="map-grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M28 0H0V28" fill="none" stroke="#94a3b8" stroke-opacity=".08" stroke-width=".7"/></pattern>
+                <linearGradient id="route-line" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#10B981" stop-opacity=".25"/><stop offset=".55" stop-color="#10B981"/><stop offset="1" stop-color="#a7f3d0"/></linearGradient>
+                <filter id="route-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+              </defs>
+              <rect width="600" height="310" fill="url(#map-grid)"/>
+              <path d="M0 78 72 63l43 23 45-10 25 20 49-8 27 26-22 25 18 21-31 37-31 4-29 35-55-9-38 29-54-14-39 19-30-17-31 8-31-21-12-61 21-32-12-40z" fill="#17212a" fill-opacity=".42" stroke="#64748b" stroke-opacity=".2"/>
+              <path d="m192 82 31 3 25 22-5 17 18 17-7 29-21 8 2 25-22 23-29-5-20 14-9-26 19-22-10-21 15-24-3-31 16-29z" fill="#17212a" fill-opacity=".5" stroke="#64748b" stroke-opacity=".18"/>
+              <path d="m333 100 40-7 22 15 36-8 19 22-15 23 13 18-23 10-15 36-37 10-25-15-33 6-10-31 16-22-11-22z" fill="#17212a" fill-opacity=".42" stroke="#64748b" stroke-opacity=".18"/>
+              <path d="M83 235 C154 215 178 155 250 166 S362 206 414 148 S498 126 528 77" fill="none" stroke="#10B981" stroke-opacity=".13" stroke-width="12" filter="url(#route-glow)"/>
+              <path d="M83 235 C154 215 178 155 250 166 S362 206 414 148 S498 126 528 77" fill="none" stroke="url(#route-line)" stroke-width="2" stroke-dasharray="5 6" filter="url(#route-glow)"/>
+              <path d="M83 235 C154 215 178 155 250 166 S362 206 414 148 S498 126 528 77" fill="none" stroke="#10B981" stroke-opacity=".25" stroke-width="1"/>
+              <circle cx="83" cy="235" r="10" fill="#10B981" fill-opacity=".12"/><circle cx="83" cy="235" r="4" fill="#a7f3d0"/><circle cx="83" cy="235" r="2" fill="#fff"/>
+              <circle cx="250" cy="166" r="5" fill="#0c1118" stroke="#34d399" stroke-width="2"/><circle cx="414" cy="148" r="5" fill="#0c1118" stroke="#34d399" stroke-width="2"/>
+              <circle cx="528" cy="77" r="12" fill="#10B981" fill-opacity=".13"/><circle cx="528" cy="77" r="5" fill="#10B981" filter="url(#route-glow)"/><circle cx="528" cy="77" r="2" fill="#ecfdf5"/>
+              <circle cx="83" cy="235" r="13" fill="none" stroke="#34d399" stroke-opacity=".65" stroke-width="1" class="map-pulse"/>
+              <circle cx="528" cy="77" r="14" fill="none" stroke="#34d399" stroke-opacity=".6" stroke-width="1" class="map-pulse map-pulse-delay"/>
+            </svg>
+            <span class="absolute bottom-[17%] left-[9%] rounded border border-white/[0.08] bg-[#090d13]/85 px-2 py-1 font-mono text-[9px] text-slate-300">SEATTLE <span class="text-slate-600">· SEA</span></span>
+            <span class="absolute right-[7%] top-[18%] rounded border border-emerald-300/15 bg-[#090d13]/90 px-2 py-1 font-mono text-[9px] text-emerald-200">DENVER <span class="text-emerald-500/60">· DEN</span></span>
+            <span class="absolute left-[41%] top-[47%] hidden rounded border border-white/[0.07] bg-[#090d13]/80 px-1.5 py-1 font-mono text-[8px] text-slate-500 sm:block">SALT LAKE CITY</span>
+            <div class="absolute bottom-3 right-3 font-mono text-[8px] text-slate-600">ROUTE VECTOR // 1,329 MI</div>
+          </div>
+
+          <div class="relative mt-3 grid gap-3 sm:grid-cols-[1.25fr_0.75fr]">
+            <article class="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3.5">
+              <div class="flex items-start justify-between gap-2">
+                <div><p class="font-mono text-[8px] uppercase tracking-[0.16em] text-slate-500">Live courier status</p><p class="mt-1.5 font-mono text-base font-semibold tracking-wide text-white">LGT-564K2</p></div>
+                <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/15 bg-emerald-400/[0.08] px-2 py-1 font-mono text-[8px] text-emerald-300"><span class="status-led"></span> IN TRANSIT · #402</span>
+              </div>
+              <div class="mt-3 grid grid-cols-[1fr_auto] gap-2 border-t border-white/[0.07] pt-3 font-mono text-[9px]">
+                <div><p class="text-slate-600">LIVE COORDINATES</p><p class="mt-1 text-slate-300">47.6062° N, 122.3321° W</p></div>
+                <div class="text-right"><p class="text-slate-600">SPEED / ETA</p><p class="mt-1 text-slate-300">58 mph <span class="px-1 text-slate-600">·</span> <time data-eta-clock datetime="16:20">ETA 16:20 MST</time></p></div>
+              </div>
+            </article>
+            <article class="flex flex-col justify-between rounded-xl border border-white/[0.08] bg-white/[0.025] p-3.5">
+              <p class="font-mono text-[8px] uppercase tracking-[0.16em] text-slate-500">Chain of custody</p>
+              <div class="mt-3 flex items-center gap-2.5">
+                <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-emerald-300/15 bg-emerald-300/[0.07] text-emerald-300">
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.9 8.2 7 10 4.1-1.8 7-5.4 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+                </span>
+                <p class="text-[10px] font-medium leading-4 text-slate-300">Proof of custody:<br><span class="text-emerald-300">Cryptographically verified</span></p>
+              </div>
+              <p class="mt-3 font-mono text-[8px] text-slate-600">SIGNATURE HASH <span class="text-slate-400">0x7A…91F2</span></p>
+            </article>
+          </div>
+          <div class="relative mt-3 flex items-center justify-between border-t border-white/[0.07] px-1 pt-3 font-mono text-[8px] uppercase tracking-[0.12em] text-slate-600"><span>Last sync <time data-sync-clock>--:--:--</time></span><span>Signal integrity <span class="text-emerald-400">OPTIMAL</span></span><span>Node 08 / 41</span></div>
+        </div>
+        <div class="pointer-events-none absolute -bottom-10 -right-8 -z-10 h-40 w-40 rounded-full bg-emerald-400/10 blur-[70px]" aria-hidden="true"></div>
+      </section>
+    </main>
+
+    <section id="telemetry" aria-labelledby="telemetry-title" class="scroll-mt-24 border-t border-white/[0.07] bg-[#0b1016]/85">
+      <div class="mx-auto max-w-[1500px] px-5 py-20 sm:px-8 sm:py-24 lg:px-12">
+        <div class="max-w-2xl">
+          <p class="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">01 / Fleet telemetry</p>
+          <h2 id="telemetry-title" class="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white sm:text-5xl">Every signal. One live picture.</h2>
+          <p class="mt-4 text-sm leading-6 text-slate-400 sm:text-base">Follow shipments from dispatch to handoff with location events, route context, and a clear record of every operational milestone.</p>
+        </div>
+        <div class="mt-10 grid gap-3 md:grid-cols-3">
+          <article class="rounded-2xl border border-white/[0.09] bg-white/[0.025] p-5 transition duration-200 hover:border-emerald-300/25 hover:bg-white/[0.04]">
+            <span class="font-mono text-[9px] uppercase tracking-[0.16em] text-emerald-300">01 / Signal</span>
+            <h3 class="mt-4 text-base font-semibold text-white">Sub-second ping</h3>
+            <p class="mt-2 text-xs leading-5 text-slate-400">Bring incoming courier location updates into a single shipment timeline. Sync metrics shown here are illustrative interface data.</p>
+            <div class="mt-6 flex items-center gap-2 border-t border-white/[0.07] pt-4 font-mono text-[10px] text-slate-500"><span class="status-led"></span> TELEMETRY STREAM</div>
+          </article>
+          <article class="rounded-2xl border border-white/[0.09] bg-white/[0.025] p-5 transition duration-200 hover:border-emerald-300/25 hover:bg-white/[0.04]">
+            <span class="font-mono text-[9px] uppercase tracking-[0.16em] text-emerald-300">02 / Boundary</span>
+            <h3 class="mt-4 text-base font-semibold text-white">Geofencing events</h3>
+            <p class="mt-2 text-xs leading-5 text-slate-400">Organize arrival and departure checkpoints around hubs and delivery zones for faster exception visibility.</p>
+            <div class="mt-6 flex items-center gap-2 border-t border-white/[0.07] pt-4 font-mono text-[10px] text-slate-500"><span class="h-1.5 w-1.5 rounded-full bg-sky-400"></span> ZONE / HUB / STOP</div>
+          </article>
+          <article class="rounded-2xl border border-white/[0.09] bg-white/[0.025] p-5 transition duration-200 hover:border-emerald-300/25 hover:bg-white/[0.04]">
+            <span class="font-mono text-[9px] uppercase tracking-[0.16em] text-emerald-300">03 / History</span>
+            <h3 class="mt-4 text-base font-semibold text-white">Route replay</h3>
+            <p class="mt-2 text-xs leading-5 text-slate-400">Review status updates and shipment history to understand what happened along a consignment’s route.</p>
+            <div class="mt-6 flex items-center gap-2 border-t border-white/[0.07] pt-4 font-mono text-[10px] text-slate-500"><span class="h-1.5 w-1.5 rounded-full bg-violet-400"></span> EVENT HISTORY</div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="fleet-api" aria-labelledby="fleet-api-title" class="scroll-mt-24 border-t border-white/[0.07]">
+      <div class="mx-auto grid max-w-[1500px] gap-8 px-5 py-20 sm:px-8 sm:py-24 lg:grid-cols-[1.2fr_0.8fr] lg:items-center lg:px-12">
+        <div>
+          <p class="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">02 / Developer interface</p>
+          <h2 id="fleet-api-title" class="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white sm:text-5xl">Dispatch through your stack.</h2>
+          <p class="mt-4 max-w-xl text-sm leading-6 text-slate-400">A representative request and response shape for integrating shipment dispatch into your own tools.</p>
+          <div class="mt-7 overflow-hidden rounded-2xl border border-white/[0.1] bg-[#080c11] shadow-[0_22px_60px_rgba(0,0,0,0.28)]">
+            <div class="flex items-center justify-between border-b border-white/[0.08] px-4 py-3">
+              <div class="flex items-center gap-2"><span class="flex gap-1.5" aria-hidden="true"><i class="h-1.5 w-1.5 rounded-full bg-rose-400/80"></i><i class="h-1.5 w-1.5 rounded-full bg-amber-300/80"></i><i class="h-1.5 w-1.5 rounded-full bg-emerald-400/80"></i></span><span class="ml-1 font-mono text-[9px] text-slate-500">dispatch-request.sh</span></div>
+              <span class="rounded border border-white/[0.08] px-1.5 py-0.5 font-mono text-[8px] uppercase text-slate-500">Example</span>
+            </div>
+            <pre class="overflow-x-auto p-4 font-mono text-[10px] leading-6 text-slate-300 sm:p-5 sm:text-xs"><code><span class="text-emerald-300">curl</span> -X POST https://api.logitrack.io/v1/dispatch \
+  -H <span class="text-amber-200">"Authorization: Bearer $LOGITRACK_API_KEY"</span> \
+  -H <span class="text-amber-200">"Content-Type: application/json"</span> \
+  -d <span class="text-sky-200">'{"recipient": "Ava Smith", "origin": "SEA", "destination": "DEN"}'</span>
+
+<span class="text-slate-500">// Example response</span>
+{
+  <span class="text-sky-300">"tracking_id"</span>: <span class="text-emerald-200">"LT-8492-US"</span>,
+  <span class="text-sky-300">"status"</span>: <span class="text-emerald-200">"pending"</span>,
+  <span class="text-sky-300">"created"</span>: <span class="text-violet-200">true</span>
+}</code></pre>
+          </div>
+          <p class="mt-3 font-mono text-[9px] leading-4 text-slate-600">Illustrative API example only. Fleet API endpoints and live credentials are not enabled in this deployment.</p>
+        </div>
+        <aside class="rounded-2xl border border-emerald-300/15 bg-[radial-gradient(ellipse_at_top_right,rgba(16,185,129,0.1),transparent_55%)] p-5 sm:p-6">
+          <div class="flex items-start justify-between gap-3">
+            <div><p class="font-mono text-[9px] uppercase tracking-[0.16em] text-slate-500">Workspace credentials</p><h3 class="mt-2 text-lg font-semibold text-white">API key access</h3></div>
+            <span class="rounded-full border border-amber-300/20 bg-amber-300/[0.07] px-2 py-1 font-mono text-[8px] font-semibold text-amber-200">NOT CONFIGURED</span>
+          </div>
+          <p class="mt-3 text-xs leading-5 text-slate-400">API key issuance is not configured for this deployment. Never use example tokens in production.</p>
+          <div class="mt-5 rounded-lg border border-white/[0.08] bg-black/30 p-3">
+            <p class="font-mono text-[8px] uppercase tracking-[0.14em] text-slate-600">Example format · not issued</p>
+            <p class="mt-2 font-mono text-xs text-slate-500">lgt_live_••••••••••••••••</p>
+          </div>
+          <button type="button" disabled title="API key issuance is not configured" class="mt-3 w-full cursor-not-allowed rounded-lg bg-emerald-300/10 px-3 py-2.5 text-xs font-semibold text-emerald-200/50">Generate API key · unavailable</button>
+          <a href="{% url 'profile' %}?tab=api" class="mt-5 inline-flex w-full items-center justify-center rounded-lg border border-white/[0.12] bg-white/[0.04] px-3 py-2.5 text-xs font-semibold text-slate-200 transition duration-200 hover:border-emerald-300/30 hover:bg-white/[0.08]">Open API &amp; Webhook settings <span class="ml-2" aria-hidden="true">→</span></a>
+        </aside>
+      </div>
+    </section>
+
+    <section id="docs" aria-labelledby="docs-title" class="scroll-mt-24 border-t border-white/[0.07] bg-[#0b1016]/85">
+      <div class="mx-auto max-w-[1500px] px-5 py-20 sm:px-8 sm:py-24 lg:px-12">
+        <div class="max-w-2xl">
+          <p class="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">03 / Field guide</p>
+          <h2 id="docs-title" class="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white sm:text-5xl">Clear docs. Faster dispatch.</h2>
+          <p class="mt-4 text-sm leading-6 text-slate-400">A quick orientation for connecting a workspace and following shipment events.</p>
+        </div>
+        <div class="mt-8 max-w-4xl divide-y divide-white/[0.08] rounded-2xl border border-white/[0.09] bg-white/[0.025] px-5 sm:px-6">
+          <details open class="group py-5">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-semibold text-white"><span><span class="mr-3 font-mono text-[9px] text-emerald-300">01</span>Quickstart</span><span class="text-slate-500 transition duration-200 group-open:rotate-45">+</span></summary>
+            <p class="mt-3 max-w-2xl pl-8 text-xs leading-5 text-slate-400">Create a LogiTrack account, add a shipment from the dispatch console, then use its tracking ID to inspect status and shipment history.</p>
+          </details>
+          <details class="group py-5">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-semibold text-white"><span><span class="mr-3 font-mono text-[9px] text-emerald-300">02</span>Webhook integration</span><span class="text-slate-500 transition duration-200 group-open:rotate-45">+</span></summary>
+            <p class="mt-3 max-w-2xl pl-8 text-xs leading-5 text-slate-400">Save an HTTPS endpoint and select shipment event preferences in Workspace Settings → API &amp; Webhooks. In this deployment, preferences are stored but event delivery is not configured.</p>
+          </details>
+          <details class="group py-5">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-semibold text-white"><span><span class="mr-3 font-mono text-[9px] text-emerald-300">03</span>Carrier spec</span><span class="text-slate-500 transition duration-200 group-open:rotate-45">+</span></summary>
+            <p class="mt-3 max-w-2xl pl-8 text-xs leading-5 text-slate-400">Choose the carrier or in-house fleet when creating a consignment. Carrier-specific live integrations and tracking sync are not enabled here; current statuses are managed in the shipment workspace.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section id="enterprise" aria-labelledby="enterprise-title" class="scroll-mt-24 border-t border-white/[0.07] bg-[#090d13]/85">
+      <div class="mx-auto max-w-[1500px] px-5 py-20 sm:px-8 sm:py-24 lg:px-12">
+        <div class="max-w-3xl">
+          <p class="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">04 / Enterprise architecture</p>
+          <h2 id="enterprise-title" class="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white sm:text-5xl">Mission-critical reliability for enterprise fleets.</h2>
+          <p class="mt-4 text-sm leading-6 text-slate-400 sm:text-base">Custom telemetry ingestion, dedicated infrastructure, and guaranteed SLAs for high-volume logistics networks.</p>
+        </div>
+        <div class="mt-10 grid gap-3 md:grid-cols-3">
+          <article class="rounded-2xl border border-white/[0.09] bg-white/[0.025] p-5 transition duration-200 hover:border-emerald-300/25 hover:bg-white/[0.04]">
+            <span class="font-mono text-[9px] uppercase tracking-[0.16em] text-emerald-300">01 / Infrastructure</span>
+            <h3 class="mt-4 text-base font-semibold text-white">Dedicated Ingestion Clusters</h3>
+            <p class="mt-2 text-xs leading-5 text-slate-400">Sub-second GPS pipelines with isolated compute and zero rate limits.</p>
+          </article>
+          <article class="rounded-2xl border border-white/[0.09] bg-white/[0.025] p-5 transition duration-200 hover:border-emerald-300/25 hover:bg-white/[0.04]">
+            <span class="font-mono text-[9px] uppercase tracking-[0.16em] text-emerald-300">02 / Governance</span>
+            <h3 class="mt-4 text-base font-semibold text-white">Compliance &amp; SOC 2</h3>
+            <p class="mt-2 text-xs leading-5 text-slate-400">End-to-end encrypted telemetry logs with SAML/SSO and audit trail exports.</p>
+          </article>
+          <article class="rounded-2xl border border-white/[0.09] bg-white/[0.025] p-5 transition duration-200 hover:border-emerald-300/25 hover:bg-white/[0.04]">
+            <span class="font-mono text-[9px] uppercase tracking-[0.16em] text-emerald-300">03 / Integration</span>
+            <h3 class="mt-4 text-base font-semibold text-white">Custom WMS / ERP Connectors</h3>
+            <p class="mt-2 text-xs leading-5 text-slate-400">Direct bi-directional sync with SAP, Oracle, and custom warehouse management systems.</p>
+          </article>
+        </div>
+        <a href="mailto:enterprise@logitrack.io?subject=Enterprise%20Architecture%20Review" class="mt-7 inline-flex items-center gap-2 rounded-lg border border-emerald-300/25 bg-emerald-300/[0.08] px-4 py-3 text-xs font-semibold text-emerald-200 transition duration-200 hover:border-emerald-300/50 hover:bg-emerald-300/[0.13]">Schedule Architecture Review <span aria-hidden="true">→</span></a>
+        <p class="mt-3 font-mono text-[9px] text-slate-600">Enterprise capabilities are subject to deployment and service configuration.</p>
+      </div>
+    </section>
+
+    <section aria-labelledby="operations-title" class="border-t border-white/[0.07]">
+      <div class="mx-auto flex max-w-[1500px] flex-col gap-6 px-5 py-16 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-12">
+        <div><p class="font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-emerald-300">05 / Operations</p><h2 id="operations-title" class="mt-2 text-2xl font-semibold tracking-tight text-white">Ready to dispatch your first consignment?</h2><p class="mt-2 text-xs text-slate-400">Create a shipment and follow its progress from the operations console.</p></div>
+        <div class="flex flex-wrap items-center gap-2">
+          <a href="{% url 'shipment_create' %}" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-emerald-400 px-4 py-3 text-xs font-bold text-[#06120D] shadow-[0_0_24px_rgba(16,185,129,0.16)] transition duration-200 hover:bg-emerald-300">Launch Dispatch Console <span aria-hidden="true">→</span></a>
+          <a href="#telemetry" class="inline-flex shrink-0 items-center justify-center rounded-lg border border-white/[0.12] px-4 py-3 text-xs font-semibold text-slate-300 transition duration-200 hover:border-white/25 hover:bg-white/[0.05] hover:text-white">View Live Demo</a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="border-t border-white/[0.07] bg-black/20">
+      <div class="mx-auto flex max-w-[1500px] flex-col gap-2 px-5 py-4 font-mono text-[9px] uppercase tracking-[0.12em] text-slate-600 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
+        <span>LogiTrack command // global supply chain intelligence</span><span>Secure by design <span class="px-1.5 text-slate-700">·</span> Built for the real world</span>
+      </div>
+    </footer>
+  </div>
+</div>
+{% endblock %}

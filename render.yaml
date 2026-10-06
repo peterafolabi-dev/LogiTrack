@@ -1,0 +1,62 @@
+services:
+  - type: web
+    name: logitrack
+    runtime: python
+    plan: free
+    buildCommand: "chmod +x build.sh && ./build.sh"
+    startCommand: "gunicorn logitrack.wsgi:application"
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: logitrack.settings
+      - key: DEBUG
+        value: "0"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: logitrack-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: logitrack-redis
+          property: connectionString
+      - key: ALLOWED_HOSTS
+        value: "*"
+
+  - type: worker
+    name: logitrack-worker
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "celery -A logitrack worker --loglevel=info --concurrency=2"
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: logitrack.settings
+      - key: DEBUG
+        value: "0"
+      - key: SECRET_KEY
+        fromService:
+          type: web
+          name: logitrack
+          envVarKey: SECRET_KEY
+      - key: DATABASE_URL
+        fromDatabase:
+          name: logitrack-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: logitrack-redis
+          property: connectionString
+
+databases:
+  - name: logitrack-db
+    databaseName: logitrack
+    user: logitrack
+    plan: free
+
+  - type: redis
+    name: logitrack-redis
+    plan: free
+    ipAllowList: []

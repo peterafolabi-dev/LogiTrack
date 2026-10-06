@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="space-y-8">
+  <div class="rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-6 shadow-[var(--shadow)]">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <p class="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">Shipment</p>
+        <div class="mt-3 ticket-notch inline-block rounded-2xl border border-[var(--line)] bg-[#fef3c7] px-5 py-3 text-2xl font-black uppercase tracking-[0.2em] text-[var(--text)]">{{ shipment.tracking_number }}</div>
+      </div>
+      <div class="flex items-center gap-3">
+        <button type="button" data-copy-link="{{ request.build_absolute_uri|cut:'http://127.0.0.1:8000' }}{% url 'public_tracking' %}?tracking_number={{ shipment.tracking_number }}" class="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-white px-4 py-2 font-medium">
+          <svg data-copy-icon class="h-4 w-4" viewBox="0 0 20 20" fill="none"><path d="M7 7.5A2.5 2.5 0 0 1 9.5 5H14a2 2 0 0 1 2 2v4.5A2.5 2.5 0 0 1 13.5 14H9.5A2.5 2.5 0 0 1 7 11.5v-4z" stroke="currentColor" stroke-width="1.5"/><path d="M4 10.5A2.5 2.5 0 0 1 6.5 8h4A2.5 2.5 0 0 1 13 10.5v4A2.5 2.5 0 0 1 10.5 17h-4A2.5 2.5 0 0 1 4 14.5v-4z" stroke="currentColor" stroke-width="1.5"/></svg>
+          <svg data-copy-done class="hidden h-4 w-4" viewBox="0 0 20 20" fill="none"><path d="M5 10.5l3 3 7-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Copy tracking link
+        </button>
+        <a href="{% url 'shipment_edit' shipment.pk %}" class="rounded-full bg-brand-600 px-4 py-2 font-semibold text-white">Edit</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+    <div class="rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-6 shadow-[var(--shadow)]">
+      <h2 class="text-xl font-black uppercase tracking-[-0.04em]">Status history</h2>
+      <div class="mt-6 space-y-4">
+        {% for update in shipment.history.all %}
+          <div class="flex gap-4">
+            <div class="flex w-8 flex-col items-center">
+              <span class="mt-1 inline-block h-3 w-3 rounded-full bg-brand-600"></span>
+              {% if not forloop.last %}<span class="mt-1 h-16 w-px bg-[var(--line)]"></span>{% endif %}
+            </div>
+            <div class="flex-1 rounded-2xl border border-[var(--line)] bg-white/60 p-3">
+              <div class="flex items-center justify-between gap-3"><span class="font-semibold">{{ update.get_status_display }}</span><span class="text-xs text-[var(--muted)]">{{ update.created_at|date:'M d, Y H:i' }}</span></div>
+              {% if update.location %}<p class="mt-2 text-sm text-[var(--muted)]">{{ update.location }}</p>{% endif %}
+              {% if update.note %}<p class="mt-1 text-sm">{{ update.note }}</p>{% endif %}
+            </div>
+          </div>
+        {% empty %}
+          <p class="text-[var(--muted)]">No updates recorded yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-6 shadow-[var(--shadow)]">
+      <h2 class="text-xl font-black uppercase tracking-[-0.04em]">Details</h2>
+      <dl class="mt-4 space-y-4 text-sm">
+        <div><dt class="text-[var(--muted)]">Recipient</dt><dd class="mt-1 font-semibold">{{ shipment.recipient_name }}</dd></div>
+        <div><dt class="text-[var(--muted)]">Phone</dt><dd class="mt-1 font-semibold">{{ shipment.recipient_phone }}</dd></div>
+        <div><dt class="text-[var(--muted)]">From</dt><dd class="mt-1 font-semibold">{{ shipment.origin }}</dd></div>
+        <div><dt class="text-[var(--muted)]">Destination</dt><dd class="mt-1 font-semibold">{{ shipment.destination }}</dd></div>
+        <div><dt class="text-[var(--muted)]">Description</dt><dd class="mt-1 font-semibold">{{ shipment.description }}</dd></div>
+      </dl>
+    </div>
+  </div>
+
+  <div class="rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-6 shadow-[var(--shadow)]">
+    <h2 class="text-xl font-black uppercase tracking-[-0.04em]">Update status</h2>
+    <form method="post" action="{% url 'shipment_detail' shipment.pk %}" class="mt-6 space-y-4">
+      {% csrf_token %}
+      {{ status_form.non_field_errors }}
+      {% for field in status_form %}
+        <div>
+          <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-medium">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}<div class="mt-1 text-sm text-rose-600">{{ field.errors|join:', ' }}</div>{% endif %}
+        </div>
+      {% endfor %}
+      <button type="submit" class="rounded-full bg-brand-600 px-4 py-3 font-semibold text-white">Save update</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

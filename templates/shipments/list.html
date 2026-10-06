@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% load logitrack_tags %}
+
+{% block title %}Active Shipments | LogiTrack{% endblock %}
+{% block content %}
+<div class="space-y-5">
+  <header class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+    <div><p class="font-mono text-[9px] font-semibold uppercase tracking-[0.17em] text-zinc-400">Fleet dispatch / consignments</p><div class="mt-2 flex flex-wrap items-center gap-3"><h1 class="text-3xl font-semibold tracking-[-0.05em] text-zinc-950">Active Shipments</h1><span class="rounded-full border border-zinc-200 bg-white px-2.5 py-1 font-mono text-[10px] text-zinc-500">{{ total_count }} total nodes</span></div></div>
+    <div class="flex flex-wrap gap-2">
+      <details class="relative"><summary class="cursor-pointer list-none rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50">Export manifest ▾</summary><div class="absolute right-0 z-10 mt-1 min-w-36 overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 shadow-lg"><a href="?export=csv{% if query %}&q={{ query|urlencode }}{% endif %}{% if status %}&status={{ status }}{% endif %}" class="block px-3 py-2 text-xs hover:bg-zinc-50">Download CSV</a><a href="?export=json{% if query %}&q={{ query|urlencode }}{% endif %}{% if status %}&status={{ status }}{% endif %}" class="block px-3 py-2 text-xs hover:bg-zinc-50">Download JSON</a></div></details>
+      <a href="{% url 'shipment_create' %}" class="rounded-lg bg-zinc-900 px-3.5 py-2.5 text-xs font-semibold text-white transition duration-200 hover:bg-zinc-800">+ New shipment <kbd class="ml-2 rounded border border-white/25 px-1 py-0.5 font-mono text-[9px]">C</kbd></a>
+    </div>
+  </header>
+
+  <section class="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+    <form action="{% url 'shipments_list' %}" method="get" data-live-filter>
+      <div class="flex flex-col gap-3 border-b border-zinc-200 p-3 sm:p-4">
+        <div class="flex flex-col gap-2 lg:flex-row lg:items-center">
+          <label class="relative min-w-0 flex-1"><span class="sr-only">Search shipments</span><svg class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></svg><input data-live-search name="q" value="{{ query }}" placeholder="Search tracking ID, recipient, city, or carrier... (Press / to search)" class="w-full rounded-lg border border-zinc-200 py-2.5 pl-9 pr-3 text-xs outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15" /></label>
+          <div class="flex flex-wrap gap-2">
+            <label class="sr-only" for="carrier-filter">Carrier / fleet</label><select id="carrier-filter" name="carrier" data-submit-filter class="rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-[11px] text-zinc-600 outline-none focus:border-emerald-500"><option value="">All carriers</option>{% for item in carriers %}<option value="{{ item }}" {% if carrier == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select>
+            <label class="sr-only" for="date-range-filter">Created date range</label><select id="date-range-filter" name="range" data-submit-filter class="rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-[11px] text-zinc-600 outline-none focus:border-emerald-500"><option value="">Any date</option><option value="24h" {% if date_range == '24h' %}selected{% endif %}>Last 24h</option><option value="7d" {% if date_range == '7d' %}selected{% endif %}>Last 7 days</option></select>
+            <div class="flex rounded-lg border border-zinc-200 p-0.5 text-[10px]"><span class="rounded-md bg-zinc-100 px-2.5 py-1.5 font-semibold">Table</span><span class="px-2.5 py-1.5 text-zinc-400" title="GPS map view requires courier coordinates">Map</span><span class="px-2.5 py-1.5 text-zinc-400" title="Pipeline view is not enabled">Pipeline</span></div>
+          </div>
+        </div>
+        <div class="status-tabs-fade border-t border-zinc-100 pt-2" data-scroll-fade>
+        <nav class="flex gap-1 overflow-x-auto whitespace-nowrap scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Filter by shipment status">
+          <a href="{% url 'shipments_list' %}?q={{ query|urlencode }}&carrier={{ carrier|urlencode }}&range={{ date_range }}" class="shrink-0 rounded-lg px-2.5 py-2 text-[10px] {% if not status %}bg-zinc-900 font-semibold text-white{% else %}bg-zinc-100 text-zinc-600 hover:bg-zinc-200{% endif %}">All shipments <span class="ml-1 rounded-full {% if not status %}bg-white/15 text-white{% else %}bg-white text-zinc-500{% endif %} px-1.5 py-0.5 text-[9px]">{{ total_count }}</span></a>
+          {% for value, label in shipment_status_choices %}
+            <a href="{% url 'shipments_list' %}?status={{ value }}&q={{ query|urlencode }}&carrier={{ carrier|urlencode }}&range={{ date_range }}" class="shrink-0 rounded-lg px-2.5 py-2 text-[10px] {% if status == value %}bg-zinc-900 font-semibold text-white{% else %}bg-zinc-100 text-zinc-600 hover:bg-zinc-200{% endif %}">{{ label }} <span class="ml-1 rounded-full {% if status == value %}bg-white/15 text-white{% else %}bg-white text-zinc-500{% endif %} px-1.5 py-0.5 text-[9px]">{{ status_counts|get_item:value|default:0 }}</span></a>
+          {% endfor %}
+        </nav>
+        </div>
+      </div>
+    </form>
+
+    {% if page_obj %}
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[1050px] text-left">
+          <thead class="border-b border-zinc-200 bg-zinc-50/80 text-[9px] font-semibold uppercase tracking-[0.12em] text-zinc-400"><tr><th class="w-10 px-4 py-3"><span class="sr-only">Selection</span></th><th class="px-3 py-3">Tracking ID</th><th class="px-3 py-3">Consignee &amp; destination</th><th class="px-3 py-3">Origin hub</th><th class="px-3 py-3">Status</th><th class="px-3 py-3">Carrier / driver</th><th class="px-3 py-3">ETA</th><th class="px-4 py-3 text-right">Actions</th></tr></thead>
+          <tbody class="divide-y divide-zinc-100">
+            {% for shipment in page_obj %}
+              <tr class="group transition duration-200 hover:bg-zinc-50/70">
+                <td class="px-4 py-3"><input type="checkbox" aria-label="Select {{ shipment.tracking_number }}" class="rounded border-zinc-300 accent-emerald-600" /></td>
+                <td class="px-3 py-3"><div class="flex items-center gap-1.5"><a href="{% url 'shipment_detail' shipment.pk %}" class="font-mono text-[11px] font-semibold text-zinc-800 hover:text-emerald-700">{{ shipment.tracking_number }}</a><button type="button" data-copy-text="{{ shipment.tracking_number }}" class="text-[10px] text-zinc-300 opacity-0 transition hover:text-emerald-700 group-hover:opacity-100" aria-label="Copy tracking ID">▢</button></div><span class="mt-1 block text-[10px] text-zinc-400">Created {{ shipment.created_at|date:'M d, Y' }}</span></td>
+                <td class="px-3 py-3"><p class="text-xs font-medium text-zinc-800">{{ shipment.recipient_name }}</p><p class="mt-0.5 text-[10px] text-zinc-500">{{ shipment.destination }}</p></td>
+                <td class="px-3 py-3 text-xs text-zinc-600">{{ shipment.origin }}</td>
+                <td class="px-3 py-3"><span class="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-medium {% if shipment.status == 'in_transit' %}bg-indigo-50 text-indigo-700{% elif shipment.status == 'out_for_delivery' %}bg-amber-50 text-amber-800{% elif shipment.status == 'delivered' %}bg-emerald-50 text-emerald-800{% elif shipment.status == 'failed' %}bg-rose-50 text-rose-700{% elif shipment.status == 'picked_up' %}bg-sky-50 text-sky-700{% else %}bg-zinc-100 text-zinc-600{% endif %}"><span class="h-1.5 w-1.5 rounded-full {% if shipment.status == 'in_transit' %}bg-indigo-500{% elif shipment.status == 'out_for_delivery' %}bg-amber-500{% elif shipment.status == 'delivered' %}bg-emerald-500{% elif shipment.status == 'failed' %}bg-rose-500{% elif shipment.status == 'picked_up' %}bg-sky-500{% else %}bg-zinc-400{% endif %}"></span>{{ shipment.get_status_display }}</span></td>
+                <td class="px-3 py-3 text-xs text-zinc-600">{{ shipment.carrier }}</td>
+                <td class="px-3 py-3 font-mono text-[10px] text-zinc-500">{% if shipment.estimated_delivery %}{{ shipment.estimated_delivery|date:'M d · H:i' }}{% else %}<span class="font-sans text-zinc-400">Not set</span>{% endif %}</td>
+                <td class="px-4 py-3 text-right"><details class="relative inline-block text-left"><summary class="cursor-pointer list-none rounded-md px-2 py-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700" aria-label="Shipment actions">•••</summary><div class="absolute right-0 z-10 mt-1 w-36 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg"><a href="{% url 'shipment_detail' shipment.pk %}" class="block px-3 py-2 text-[11px] hover:bg-zinc-50">View GPS / details</a><a href="{% url 'shipment_detail' shipment.pk %}" class="block px-3 py-2 text-[11px] hover:bg-zinc-50">Update status</a></div></details></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <footer class="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 bg-zinc-50/70 px-4 py-3 text-[10px] text-zinc-500">
+        {% with start=page_obj.start_index end=page_obj.end_index %}<span>Showing {{ start }}–{{ end }} of {{ page_obj.paginator.count }} shipments</span>{% endwith %}
+        <div class="flex items-center gap-2">{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&q={{ query|urlencode }}&status={{ status }}&carrier={{ carrier|urlencode }}&range={{ date_range }}" class="rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 hover:bg-zinc-50">Previous</a>{% else %}<span class="rounded-md border border-zinc-200 px-2.5 py-1.5 text-zinc-300">Previous</span>{% endif %}<span class="font-mono">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&q={{ query|urlencode }}&status={{ status }}&carrier={{ carrier|urlencode }}&range={{ date_range }}" class="rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 hover:bg-zinc-50">Next</a>{% else %}<span class="rounded-md border border-zinc-200 px-2.5 py-1.5 text-zinc-300">Next</span>{% endif %}</div>
+      </footer>
+    {% else %}
+      <div class="px-5 py-16 text-center">
+        <span class="relative mx-auto grid h-12 w-12 place-items-center rounded-xl border border-zinc-200 bg-zinc-100 text-zinc-700"><span class="absolute inset-0 rounded-xl border border-zinc-400 animate-ping opacity-15"></span><svg class="relative h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 7h18v14H3zM3 7l3-4h12l3 4M8 12h8m-8 4h5"/></svg></span>
+        <h2 class="mt-4 text-base font-semibold text-zinc-900">No matching consignments found</h2><p class="mx-auto mt-2 max-w-md text-xs leading-5 text-zinc-500">No shipments match the selected filters, or your fleet pipeline is currently clear.</p>
+        <div class="mt-5 flex flex-wrap justify-center gap-2"><a href="{% url 'shipment_create' %}" class="rounded-lg bg-zinc-900 px-3 py-2 text-xs font-semibold text-white transition duration-200 hover:bg-zinc-800">+ Create Consignment</a><form method="post" action="{% url 'populate_demo_telemetry' %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'shipments_list' %}" /><button class="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-medium text-zinc-700 transition duration-200 hover:bg-zinc-50">⚡ Load Mock Data</button></form><a href="{% url 'shipments_list' %}" class="rounded-lg px-3 py-2 text-xs font-medium text-zinc-500 transition duration-200 hover:text-zinc-900">Reset Filters</a></div>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
