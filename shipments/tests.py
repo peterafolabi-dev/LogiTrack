@@ -1,12 +1,17 @@
 from tempfile import TemporaryDirectory
+from datetime import timedelta
+import hashlib
+import secrets
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
-from .models import Shipment, ShipmentImportBatch
+from .models import DeliveryPreferenceRequest, Shipment, ShipmentImportBatch
 
 
 class ShipmentWorkflowTests(TestCase):
@@ -268,6 +273,7 @@ class ShipmentWorkflowTests(TestCase):
             {
                 "recipient_name": "Morgan Reed",
                 "recipient_phone": "+1 555 010 2030",
+                "recipient_email": "morgan@example.test",
                 "origin": "Chicago Hub",
                 "destination": "Denver, CO",
                 "carrier": "FedEx Express",
@@ -280,6 +286,7 @@ class ShipmentWorkflowTests(TestCase):
         self.assertEqual(shipment.carrier, "FedEx Express")
         self.assertEqual(shipment.origin, "Chicago Hub")
         self.assertEqual(shipment.description, "Leave at receiving dock")
+        self.assertEqual(shipment.recipient_email, "morgan@example.test")
 
     @override_settings(
         STORAGES={
@@ -395,6 +402,94 @@ class EnterpriseSupplyChainTests(TestCase):
         )
         self.assertEqual(self.shipment_a.status, "delivered")
         self.assertEqual(float(self.shipment_a.delivery_lat), 47.6062)
+
+    def test_out_for_delivery_queues_one_hashed_token_invitation_after_commit(self):
+        self.shipment_a.recipient_email = "recipient@example.test"
+        self.shipment_a.save(update_fields=["recipient_email"])
+
+        with patch("shipments.tasks.queue_delivery_preference_invitation") as queue_invitation:
+            with self.captureOnCommitCallbacks(execute=True):
+                self.shipment_a.transition_to("picked_up")
+                self.shipment_a.transition_to("in_transit")
+                self.shipment_a.transition_to("out_for_delivery")
+
+        request = DeliveryPreferenceRequest.objects.get(shipment=self.shipment_a)
+        queue_invitation.assert_called_once()
+        request_id, raw_token = queue_invitation.call_args.args
+        self.assertEqual(request_id, request.pk)
+        self.assertTrue(request.matches_token(raw_token))
+        self.assertNotEqual(request.token_digest, raw_token)
+        self.assertLessEqual(request.expires_at, timezone.now() + timedelta(days=7))
+
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        PUBLIC_BASE_URL="https://logitrack.example.test",
+    )
+    def test_preference_invitation_email_is_asynchronous_and_idempotent(self):
+        token = secrets.token_urlsafe(32)
+        request = DeliveryPreferenceRequest.objects.create(
+            shipment=self.shipment_a,
+            token_digest=hashlib.sha256(token.encode("utf-8")).hexdigest(),
+            expires_at=timezone.now() + timedelta(days=7),
+        )
+
+        from shipments.tasks import send_delivery_preference_invitation
+
+        result = send_delivery_preference_invitation.apply(args=[request.pk, token])
+        self.assertTrue(result.successful())
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [self.shipment_a.recipient_email])
+        self.assertIn("https://logitrack.example.test/delivery-preferences/", mail.outbox[0].body)
+        self.assertIn(token, mail.outbox[0].body)
+
+        request.refresh_from_db()
+        self.assertIsNotNone(request.sent_at)
+        send_delivery_preference_invitation.apply(args=[request.pk, token])
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_recipient_preference_link_validates_token_expiry_and_single_submission(self):
+        token = secrets.token_urlsafe(32)
+        request = DeliveryPreferenceRequest.objects.create(
+            shipment=self.shipment_a,
+            token_digest=hashlib.sha256(token.encode("utf-8")).hexdigest(),
+            expires_at=timezone.now() + timedelta(days=7),
+        )
+        url = reverse(
+            "delivery_preferences",
+            kwargs={"public_id": request.public_id, "token": token},
+        )
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Cache-Control"], "no-store, max-age=0")
+        self.assertEqual(self.client.get(reverse(
+            "delivery_preferences",
+            kwargs={"public_id": request.public_id, "token": token + "bad"},
+        )).status_code, 404)
+
+        requested_date = timezone.localdate() + timedelta(days=2)
+        response = self.client.post(
+            url,
+            {
+                "delivery_instructions": "Leave at the side entrance.",
+                "requested_delivery_date": requested_date.isoformat(),
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        request.refresh_from_db()
+        self.assertEqual(request.delivery_instructions, "Leave at the side entrance.")
+        self.assertEqual(request.requested_delivery_date, requested_date)
+        self.assertIsNotNone(request.submitted_at)
+        self.shipment_a.refresh_from_db()
+        self.assertIsNone(self.shipment_a.estimated_delivery)
+
+        self.client.post(url, {"delivery_instructions": "Replace my first request."})
+        request.refresh_from_db()
+        self.assertEqual(request.delivery_instructions, "Leave at the side entrance.")
+
+        request.expires_at = timezone.now() - timedelta(seconds=1)
+        request.save(update_fields=["expires_at"])
+        self.assertEqual(self.client.get(url).status_code, 404)
 
     def test_failure_reason_tracking(self):
         """Failed transition requires an exception reason."""
