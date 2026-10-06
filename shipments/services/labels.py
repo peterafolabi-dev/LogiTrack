@@ -4,7 +4,7 @@ from PIL import Image
 
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
-from reportlab.utils import ImageReader
+from reportlab.lib.utils import ImageReader
 from reportlab.graphics.barcode import createBarcodeDrawing
 
 
