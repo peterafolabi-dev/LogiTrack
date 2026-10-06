@@ -1,6 +1,8 @@
 import decimal
+import hashlib
 import secrets
 import string
+import uuid
 
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
@@ -110,6 +112,7 @@ class Shipment(models.Model):
     customer_reference = models.CharField(max_length=100, blank=True, default="")
     recipient_name = models.CharField(max_length=120)
     recipient_phone = models.CharField(max_length=30)
+    recipient_email = models.EmailField(blank=True, default="")
     origin = models.CharField(max_length=160)
     destination = models.CharField(max_length=160)
     carrier = models.CharField(max_length=80, default="In-house fleet")
@@ -240,6 +243,8 @@ class Shipment(models.Model):
         if delivery_lng is not None:
             delivery_lng = round(decimal.Decimal(str(delivery_lng)), 6)
 
+        delivery_request = None
+        delivery_request_token = None
         with transaction.atomic():
             self.status = status
             update_fields = ["status", "updated_at"]
@@ -275,11 +280,59 @@ class Shipment(models.Model):
                 failure_reason=failure_reason,
             )
 
+            if status == "out_for_delivery" and self.recipient_email:
+                delivery_request_token = secrets.token_urlsafe(32)
+                delivery_request = DeliveryPreferenceRequest.objects.create(
+                    shipment=self,
+                    token_digest=hashlib.sha256(delivery_request_token.encode("utf-8")).hexdigest(),
+                    expires_at=timezone.now() + timezone.timedelta(days=7),
+                )
+
         # Trigger asynchronous webhook outside transaction
         from .tasks import queue_shipment_webhook
         transaction.on_commit(lambda: queue_shipment_webhook(self.pk, f"shipment.{status}"))
+        if delivery_request:
+            from .tasks import queue_delivery_preference_invitation
+
+            transaction.on_commit(
+                lambda: queue_delivery_preference_invitation(
+                    delivery_request.pk,
+                    delivery_request_token,
+                )
+            )
 
         return self
+
+
+class DeliveryPreferenceRequest(models.Model):
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    shipment = models.OneToOneField(
+        Shipment,
+        on_delete=models.CASCADE,
+        related_name="delivery_preference_request",
+    )
+    token_digest = models.CharField(max_length=64)
+    expires_at = models.DateTimeField()
+    delivery_instructions = models.CharField(max_length=500, blank=True, default="")
+    requested_delivery_date = models.DateField(null=True, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    notification_error = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Delivery preferences for {self.shipment.tracking_number}"
+
+    def matches_token(self, token):
+        candidate_digest = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        return secrets.compare_digest(self.token_digest, candidate_digest)
+
+    @property
+    def is_expired(self):
+        return timezone.now() >= self.expires_at
 
 
 class ShipmentImportBatch(models.Model):
