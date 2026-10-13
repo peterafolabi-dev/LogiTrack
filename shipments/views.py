@@ -92,10 +92,43 @@ def dashboard(request):
         queryset = queryset.filter(created_at__gte=timezone.now() - timezone.timedelta(hours=24))
     else:
         date_range = "all"
+
     counts = queryset.values("status").annotate(total=Count("id"))
     status_counts = {entry["status"]: entry["total"] for entry in counts}
     latest_shipments = queryset.select_related("user")[:8]
     status_counts["all"] = queryset.count()
+
+    delivered_count = queryset.filter(status="delivered").count()
+    failed_count = queryset.filter(status="failed").count()
+    active_count = queryset.exclude(status__in=["delivered", "failed"]).count()
+    completed_count = delivered_count + failed_count
+    delivery_success_rate = round((delivered_count / completed_count) * 100, 1) if completed_count else 0
+
+    transit_hours = []
+    for shipment in queryset.filter(status="delivered").only("created_at", "updated_at"):
+        if shipment.created_at and shipment.updated_at:
+            elapsed_hours = (shipment.updated_at - shipment.created_at).total_seconds() / 3600
+            if elapsed_hours >= 0:
+                transit_hours.append(elapsed_hours)
+    avg_transit_hours = round(sum(transit_hours) / len(transit_hours), 1) if transit_hours else 0
+    avg_transit_days = round(avg_transit_hours / 24, 1) if avg_transit_hours else 0
+
+    carrier_summary = list(
+        queryset.values("carrier")
+        .annotate(
+            total=Count("id"),
+            delivered=Count("id", filter=Q(status="delivered")),
+            failed=Count("id", filter=Q(status="failed")),
+        )
+        .order_by("-total")[:5]
+    )
+    for carrier in carrier_summary:
+        carrier["share_pct"] = round((carrier["total"] / max(status_counts.get("all", 0), 1)) * 100, 0) if status_counts.get("all", 0) else 0
+
+    alert_shipments = list(
+        queryset.filter(status__in=["failed", "out_for_delivery"]).order_by("-updated_at")[:5]
+    )
+
     return render(
         request,
         "dashboard.html",
@@ -105,6 +138,13 @@ def dashboard(request):
             "shipment_status_choices": STATUS_CHOICES,
             "organization": business.name,
             "date_range": date_range,
+            "delivered_count": delivered_count,
+            "failed_count": failed_count,
+            "active_count": active_count,
+            "delivery_success_rate": delivery_success_rate,
+            "avg_transit_days": avg_transit_days,
+            "carrier_summary": carrier_summary,
+            "alert_shipments": alert_shipments,
         },
     )
 
