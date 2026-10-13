@@ -8,13 +8,96 @@ from django.urls import reverse
 from django.utils import timezone
 import requests
 
-from .models import Business, DeliveryPreferenceRequest, Shipment, WebhookDeliveryLog
+from .models import Business, DeliveryPreferenceRequest, NotificationLog, Shipment, WebhookDeliveryLog
 from .services.webhooks import deliver_webhook_sync
 
 logger = logging.getLogger(__name__)
 
 # Exponential backoff retry delays in seconds: 1m, 5m, 15m
 RETRY_DELAYS = [60, 300, 900]
+
+
+def queue_shipment_notification(shipment_id: int, event_type: str):
+    try:
+        shipment = Shipment.objects.select_related("business").get(pk=shipment_id)
+    except Shipment.DoesNotExist:
+        return
+
+    business = shipment.business
+    if not business:
+        return
+
+    if event_type == "shipment.exception" and not business.notify_on_exception:
+        return
+    if event_type in {"shipment.created", "shipment.picked_up", "shipment.in_transit", "shipment.out_for_delivery", "shipment.delivered"} and not business.notify_on_status_change:
+        return
+    if not business.email_notifications_enabled or not shipment.recipient_email:
+        return
+
+    send_shipment_notification.delay(shipment_id, event_type)
+
+
+@shared_task(bind=True, max_retries=3)
+def send_shipment_notification(self, shipment_id, event_type):
+    try:
+        shipment = Shipment.objects.select_related("business").get(pk=shipment_id)
+    except Shipment.DoesNotExist:
+        return "Shipment not found"
+
+    business = shipment.business
+    if not business or not business.email_notifications_enabled or not shipment.recipient_email:
+        return "Notifications disabled or recipient missing"
+
+    if event_type == "shipment.exception" and not business.notify_on_exception:
+        return "Exception notifications disabled"
+    if event_type in {"shipment.created", "shipment.picked_up", "shipment.in_transit", "shipment.out_for_delivery", "shipment.delivered"} and not business.notify_on_status_change:
+        return "Status notifications disabled"
+
+    tracking_link = f"{settings.PUBLIC_BASE_URL.rstrip('/')}{reverse('public_tracking')}?tracking_number={shipment.tracking_number}"
+    status_map = {
+        "shipment.created": ("Shipment created", f"Shipment {shipment.tracking_number} has been created and is now in your dispatch queue.\n\nTrack it here: {tracking_link}"),
+        "shipment.picked_up": ("Shipment picked up", f"Shipment {shipment.tracking_number} has been picked up and is on the road.\n\nTrack it here: {tracking_link}"),
+        "shipment.in_transit": ("Shipment in transit", f"Shipment {shipment.tracking_number} is now in transit.\n\nTrack it here: {tracking_link}"),
+        "shipment.out_for_delivery": ("Out for delivery", f"Shipment {shipment.tracking_number} is out for delivery today.\n\nTrack it here: {tracking_link}"),
+        "shipment.delivered": ("Shipment delivered", f"Shipment {shipment.tracking_number} has been delivered successfully.\n\nTrack it here: {tracking_link}"),
+        "shipment.exception": ("Shipment exception", f"Shipment {shipment.tracking_number} has an exception noted and needs attention.\n\nTrack it here: {tracking_link}"),
+        "shipment.reminder": ("Delivery reminder", f"This is a delivery reminder for shipment {shipment.tracking_number}. Please review the latest delivery instructions or follow-up details here: {tracking_link}"),
+    }
+    subject, message = status_map.get(event_type, ("Shipment update", f"Shipment {shipment.tracking_number} has a status update.\n\nTrack here: {tracking_link}"))
+
+    try:
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [shipment.recipient_email],
+            fail_silently=False,
+        )
+        NotificationLog.objects.create(
+            business=business,
+            shipment=shipment,
+            channel="email",
+            event_type=event_type,
+            recipient=shipment.recipient_email,
+            message=message,
+            status="sent",
+        )
+        return "Notification sent"
+    except Exception as exc:
+        NotificationLog.objects.create(
+            business=business,
+            shipment=shipment,
+            channel="email",
+            event_type=event_type,
+            recipient=shipment.recipient_email,
+            message=message,
+            status="failed",
+            error_message=str(exc)[:2000],
+        )
+        if self.request.retries < len(RETRY_DELAYS):
+            raise self.retry(exc=exc, countdown=RETRY_DELAYS[self.request.retries])
+        logger.exception("Shipment notification exhausted retries for shipment %s event %s", shipment_id, event_type)
+        return "Notification delivery failed"
 
 
 @shared_task(bind=True, max_retries=3)

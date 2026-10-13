@@ -188,6 +188,68 @@
             </div>
           </section>
         </div>
+      {% elif active_tab == 'notifications' %}
+        <form method="post" class="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+          {% csrf_token %}
+          <input type="hidden" name="tab" value="notifications" />
+          <section class="p-5 sm:p-6">
+            <h2 class="text-sm font-semibold text-zinc-900">Notification alerts</h2>
+            <p class="mt-2 text-xs leading-5 text-zinc-500">Keep recipients informed at each status milestone and after delivery exceptions.</p>
+
+            <div class="mt-5 space-y-4">
+              <label class="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 p-3">
+                <div>
+                  <div class="text-xs font-semibold text-zinc-800">Email notifications</div>
+                  <div class="mt-1 text-[10px] text-zinc-500">Send shipment lifecycle updates to recipient emails.</div>
+                </div>
+                <input type="checkbox" name="email_notifications_enabled" {% if business.email_notifications_enabled %}checked{% endif %} class="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500" />
+              </label>
+
+              <label class="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 p-3">
+                <div>
+                  <div class="text-xs font-semibold text-zinc-800">SMS notifications</div>
+                  <div class="mt-1 text-[10px] text-zinc-500">Prepare second-channel delivery notifications for mobile recipients.</div>
+                </div>
+                <input type="checkbox" name="sms_notifications_enabled" {% if business.sms_notifications_enabled %}checked{% endif %} class="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500" />
+              </label>
+
+              <label class="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 p-3">
+                <div>
+                  <div class="text-xs font-semibold text-zinc-800">Status-change alerts</div>
+                  <div class="mt-1 text-[10px] text-zinc-500">Send an email whenever a shipment changes state.</div>
+                </div>
+                <input type="checkbox" name="notify_on_status_change" {% if business.notify_on_status_change %}checked{% endif %} class="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500" />
+              </label>
+
+              <label class="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 p-3">
+                <div>
+                  <div class="text-xs font-semibold text-zinc-800">Exception alerts</div>
+                  <div class="mt-1 text-[10px] text-zinc-500">Notify customers when a shipment fails or requires attention.</div>
+                </div>
+                <input type="checkbox" name="notify_on_exception" {% if business.notify_on_exception %}checked{% endif %} class="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500" />
+              </label>
+            </div>
+
+            <div class="mt-5 max-w-xs">
+              <label for="delivery_reminder_hours" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">Delivery reminder delay</label>
+              <div class="flex items-center gap-2">
+                <input id="delivery_reminder_hours" name="delivery_reminder_hours" type="number" min="1" max="168" value="{{ business.delivery_reminder_hours|default:24 }}" class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-xs outline-none transition duration-200 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900" />
+                <span class="text-[10px] text-zinc-500">hours</span>
+              </div>
+              <p class="mt-2 text-[10px] text-zinc-500">A reminder is queued after a shipment goes out for delivery.</p>
+            </div>
+          </section>
+
+          <section class="border-t border-zinc-200 p-5 sm:p-6">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <h3 class="text-sm font-semibold text-zinc-900">Active channels</h3>
+                <p class="mt-1 text-xs text-zinc-500">Email is enabled by default; SMS is kept as a provider-ready channel.</p>
+              </div>
+              <button type="submit" class="rounded-lg bg-zinc-900 px-3.5 py-2.5 text-xs font-semibold text-white transition hover:bg-zinc-700">Save notifications</button>
+            </div>
+          </section>
+        </form>
       {% elif active_tab == 'danger' %}
         <section class="rounded-xl border border-rose-200 bg-rose-50/70 p-5 sm:p-6">
           <h2 class="text-sm font-semibold text-rose-900">Danger zone</h2>
@@ -196,7 +258,7 @@
         </section>
       {% else %}
         <section class="rounded-xl border border-zinc-200 bg-white p-6">
-          <h2 class="text-sm font-semibold text-zinc-900">{% if active_tab == 'team' %}Team &amp; Dispatchers{% elif active_tab == 'notifications' %}Notification Alerts{% else %}Subscription &amp; Usage{% endif %}</h2>
+          <h2 class="text-sm font-semibold text-zinc-900">{% if active_tab == 'team' %}Team &amp; Dispatchers{% else %}Subscription &amp; Usage{% endif %}</h2>
           <p class="mt-2 text-xs leading-5 text-zinc-500">This workspace feature is not configured in the current deployment.</p>
         </section>
       {% endif %}

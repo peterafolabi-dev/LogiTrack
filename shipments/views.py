@@ -580,6 +580,25 @@ def profile_view(request):
             messages.success(request, "Webhook configuration updated. Deliveries are actively queued via Celery.")
             return redirect(f"{reverse('profile')}?tab=api")
 
+        if active_tab == "notifications":
+            business.email_notifications_enabled = request.POST.get("email_notifications_enabled") == "on"
+            business.sms_notifications_enabled = request.POST.get("sms_notifications_enabled") == "on"
+            business.notify_on_status_change = request.POST.get("notify_on_status_change") == "on"
+            business.notify_on_exception = request.POST.get("notify_on_exception") == "on"
+            try:
+                business.delivery_reminder_hours = max(1, int(request.POST.get("delivery_reminder_hours", business.delivery_reminder_hours)))
+            except ValueError:
+                business.delivery_reminder_hours = 24
+            business.save(update_fields=[
+                "email_notifications_enabled",
+                "sms_notifications_enabled",
+                "notify_on_status_change",
+                "notify_on_exception",
+                "delivery_reminder_hours",
+            ])
+            messages.success(request, "Notification preferences updated for this workspace.")
+            return redirect(f"{reverse('profile')}?tab=notifications")
+
         settings_form = ProfileSettingsForm(request.POST, instance=profile)
         if settings_form.is_valid():
             profile = settings_form.save()

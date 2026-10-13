@@ -342,6 +342,54 @@ class ShipmentWorkflowTests(TestCase):
             "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
         }
     )
+    def test_notifications_preferences_persist_and_queue_email(self):
+        self.client.force_login(self.user)
+        shipment = Shipment.objects.create(
+            user=self.user,
+            tracking_number="NOTIF-1001",
+            recipient_name="Jamie Bell",
+            recipient_phone="+1 555 010 6543",
+            recipient_email="jamie@example.test",
+            origin="Portland, OR",
+            destination="Seattle, WA",
+            status="pending",
+        )
+
+        response = self.client.post(
+            reverse("profile"),
+            {
+                "tab": "notifications",
+                "email_notifications_enabled": "on",
+                "sms_notifications_enabled": "on",
+                "notify_on_status_change": "on",
+                "notify_on_exception": "on",
+                "delivery_reminder_hours": "12",
+            },
+        )
+
+        self.assertRedirects(response, reverse("profile") + "?tab=notifications")
+        self.user.profile.get_or_create_business().refresh_from_db()
+        business = self.user.profile.get_or_create_business()
+        self.assertTrue(business.email_notifications_enabled)
+        self.assertTrue(business.sms_notifications_enabled)
+        self.assertTrue(business.notify_on_status_change)
+        self.assertTrue(business.notify_on_exception)
+        self.assertEqual(business.delivery_reminder_hours, 12)
+
+        with patch("shipments.tasks.send_mail") as mock_send_mail:
+            with self.captureOnCommitCallbacks(execute=True):
+                shipment.transition_to("picked_up")
+                shipment.transition_to("in_transit")
+
+        self.assertTrue(mock_send_mail.called)
+        self.assertTrue(shipment.notification_logs.filter(event_type="shipment.in_transit").exists())
+
+    @override_settings(
+        STORAGES={
+            "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+            "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+        }
+    )
     def test_general_settings_and_webhook_preferences_persist(self):
         self.client.force_login(self.user)
         response = self.client.post(

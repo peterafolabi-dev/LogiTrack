@@ -51,6 +51,11 @@ class Business(models.Model):
     webhook_url = models.URLField(blank=True, default="")
     webhook_secret = models.CharField(max_length=64, blank=True)
     webhook_events = models.JSONField(default=list, blank=True)
+    email_notifications_enabled = models.BooleanField(default=True)
+    sms_notifications_enabled = models.BooleanField(default=False)
+    notify_on_status_change = models.BooleanField(default=True)
+    notify_on_exception = models.BooleanField(default=True)
+    delivery_reminder_hours = models.PositiveIntegerField(default=24)
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -289,8 +294,31 @@ class Shipment(models.Model):
                 )
 
         # Trigger asynchronous webhook outside transaction
-        from .tasks import queue_shipment_webhook
-        transaction.on_commit(lambda: queue_shipment_webhook(self.pk, f"shipment.{status}"))
+        from .tasks import queue_shipment_notification, queue_shipment_webhook
+
+        event_name = {
+            "pending": "shipment.created",
+            "picked_up": "shipment.picked_up",
+            "in_transit": "shipment.in_transit",
+            "out_for_delivery": "shipment.out_for_delivery",
+            "delivered": "shipment.delivered",
+            "failed": "shipment.exception",
+        }.get(status, f"shipment.{status}")
+
+        transaction.on_commit(lambda: queue_shipment_webhook(self.pk, event_name))
+        transaction.on_commit(lambda: queue_shipment_notification(self.pk, event_name))
+
+        if status == "out_for_delivery" and self.recipient_email and self.business and self.business.delivery_reminder_hours:
+            reminder_delay = max(self.business.delivery_reminder_hours * 60 * 60, 60)
+            from .tasks import send_shipment_notification
+
+            transaction.on_commit(
+                lambda: send_shipment_notification.apply_async(
+                    args=[self.pk, "shipment.reminder"],
+                    countdown=reminder_delay,
+                )
+            )
+
         if delivery_request:
             from .tasks import queue_delivery_preference_invitation
 
@@ -433,6 +461,27 @@ class StatusUpdate(models.Model):
     @property
     def photo_presigned_url(self):
         return get_presigned_url(self.delivery_photo)
+
+
+class NotificationLog(models.Model):
+    CHANNEL_CHOICES = [("email", "Email"), ("sms", "SMS")]
+    STATUS_CHOICES = [("sent", "Sent"), ("failed", "Failed")]
+
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name="notification_logs", null=True, blank=True)
+    shipment = models.ForeignKey(Shipment, on_delete=models.SET_NULL, related_name="notification_logs", null=True, blank=True)
+    channel = models.CharField(max_length=12, choices=CHANNEL_CHOICES, default="email")
+    event_type = models.CharField(max_length=40, default="shipment.status")
+    recipient = models.CharField(max_length=255, blank=True, default="")
+    message = models.TextField(blank=True, default="")
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default="sent")
+    error_message = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.event_type} -> {self.recipient} [{self.status}]"
 
 
 class WebhookDeliveryLog(models.Model):
