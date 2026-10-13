@@ -147,6 +147,8 @@ def dashboard(request):
         )
         .order_by("-total")[:6]
     )
+    for route in dispatch_board:
+        route["progress_pct"] = round((route["in_progress"] / max(route["total"], 1)) * 100, 0) if route["total"] else 0
     route_coverage = round((queryset.exclude(route_code="").count() / max(status_counts.get("all", 0), 1)) * 100, 1) if status_counts.get("all", 0) else 0
     carrier_sync_count = queryset.exclude(carrier_tracking_number="").filter(business__carrier_sync_enabled=True).count()
     sla_risk_count = queryset.filter(

@@ -112,7 +112,7 @@
                     <span>{{ route.in_progress }} in progress</span>
                   </div>
                   <div class="mt-2 h-2 overflow-hidden rounded-full bg-zinc-100">
-                    <div class="h-full rounded-full bg-emerald-500" style="width: {% if route.total %}{{ route.in_progress|div:route.total|mul:100|floatformat:0 }}{% else %}0{% endif %}%;"></div>
+                    <div class="h-full rounded-full bg-emerald-500" style="width: {{ route.progress_pct }}%;"></div>
                   </div>
                   <div class="mt-2 text-[10px] text-zinc-500">{{ route.due_soon }} shipment(s) within SLA window</div>
                 </div>
