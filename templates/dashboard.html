@@ -94,6 +94,34 @@
             <span>SLA risk</span>
             <span class="font-semibold text-zinc-700">{{ sla_risk_count }} shipments</span>
           </div>
+        <div class="mt-4">
+          <h3 class="text-[9px] font-semibold uppercase tracking-[0.12em] text-zinc-400">Dispatch board</h3>
+          {% if dispatch_board %}
+            <div class="mt-3 space-y-2">
+              {% for route in dispatch_board %}
+                <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                  <div class="flex items-center justify-between gap-2">
+                    <div>
+                      <div class="text-[11px] font-semibold text-zinc-800">{{ route.route_code|default:'Unassigned route' }}</div>
+                      <div class="mt-1 text-[10px] text-zinc-500">{{ route.driver_name|default:'Unassigned driver' }}</div>
+                    </div>
+                    <span class="inline-flex rounded-full bg-amber-50 px-2 py-1 text-[9px] font-medium text-amber-800">{{ route.dispatch_priority|default:'standard'|title }}</span>
+                  </div>
+                  <div class="mt-2 flex items-center justify-between text-[10px] text-zinc-500">
+                    <span>{{ route.total }} loads</span>
+                    <span>{{ route.in_progress }} in progress</span>
+                  </div>
+                  <div class="mt-2 h-2 overflow-hidden rounded-full bg-zinc-100">
+                    <div class="h-full rounded-full bg-emerald-500" style="width: {% if route.total %}{{ route.in_progress|div:route.total|mul:100|floatformat:0 }}{% else %}0{% endif %}%;"></div>
+                  </div>
+                  <div class="mt-2 text-[10px] text-zinc-500">{{ route.due_soon }} shipment(s) within SLA window</div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="mt-3 text-xs text-zinc-500">No route assignments in this range yet.</p>
+          {% endif %}
+        </div>
           <h3 class="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-400">Carrier performance</h3>
           {% if carrier_summary %}
             <div class="mt-3 space-y-2">

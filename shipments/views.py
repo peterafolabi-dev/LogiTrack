@@ -11,7 +11,7 @@ from django.http import Http404
 from django import forms
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, Max, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -136,6 +136,17 @@ def dashboard(request):
         )
         .order_by("-total")[:5]
     )
+    dispatch_board = list(
+        queryset.exclude(route_code="")
+        .values("route_code", "driver_name", "dispatch_priority")
+        .annotate(
+            total=Count("id"),
+            in_progress=Count("id", filter=Q(status__in=["picked_up", "in_transit", "out_for_delivery"])),
+            due_soon=Count("id", filter=Q(sla_due_at__lt=timezone.now() + timezone.timedelta(hours=2), status__in=["pending", "picked_up", "in_transit", "out_for_delivery"])),
+            updated_at=Max("updated_at"),
+        )
+        .order_by("-total")[:6]
+    )
     route_coverage = round((queryset.exclude(route_code="").count() / max(status_counts.get("all", 0), 1)) * 100, 1) if status_counts.get("all", 0) else 0
     carrier_sync_count = queryset.exclude(carrier_tracking_number="").filter(business__carrier_sync_enabled=True).count()
     sla_risk_count = queryset.filter(
@@ -163,6 +174,7 @@ def dashboard(request):
             "avg_transit_days": avg_transit_days,
             "carrier_summary": carrier_summary,
             "route_summary": route_summary,
+            "dispatch_board": dispatch_board,
             "route_coverage": route_coverage,
             "carrier_sync_count": carrier_sync_count,
             "sla_risk_count": sla_risk_count,
@@ -178,6 +190,9 @@ def shipments_list(request):
     query = request.GET.get("q", "").strip()
     status = request.GET.get("status", "").strip()
     carrier = request.GET.get("carrier", "").strip()
+    route_code = request.GET.get("route", "").strip()
+    driver_name = request.GET.get("driver", "").strip()
+    dispatch_priority = request.GET.get("priority", "").strip()
     date_range = request.GET.get("range", "").strip()
     if query:
         queryset = queryset.filter(
@@ -191,6 +206,12 @@ def shipments_list(request):
         queryset = queryset.filter(status=status)
     if carrier:
         queryset = queryset.filter(carrier=carrier)
+    if route_code:
+        queryset = queryset.filter(route_code__icontains=route_code)
+    if driver_name:
+        queryset = queryset.filter(driver_name__icontains=driver_name)
+    if dispatch_priority and dispatch_priority in {"standard", "priority", "rush"}:
+        queryset = queryset.filter(dispatch_priority=dispatch_priority)
     if date_range == "24h":
         queryset = queryset.filter(created_at__gte=timezone.now() - timezone.timedelta(hours=24))
     elif date_range == "7d":
@@ -247,10 +268,15 @@ def shipments_list(request):
             "query": query,
             "status": status,
             "carrier": carrier,
+            "route_code": route_code,
+            "driver_name": driver_name,
+            "dispatch_priority": dispatch_priority,
             "date_range": date_range,
             "status_counts": status_counts,
             "shipment_status_choices": STATUS_CHOICES,
             "carriers": Shipment.objects.filter(business=business).values_list("carrier", flat=True).distinct().order_by("carrier"),
+            "route_codes": Shipment.objects.filter(business=business).exclude(route_code="").values_list("route_code", flat=True).distinct().order_by("route_code"),
+            "drivers": Shipment.objects.filter(business=business).exclude(driver_name="").values_list("driver_name", flat=True).distinct().order_by("driver_name"),
             "total_count": Shipment.objects.filter(business=business).count(),
         },
     )
