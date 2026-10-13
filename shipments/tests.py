@@ -294,6 +294,54 @@ class ShipmentWorkflowTests(TestCase):
             "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
         }
     )
+    def test_dashboard_renders_operations_analytics(self):
+        self.client.force_login(self.user)
+        Shipment.objects.create(
+            user=self.user,
+            tracking_number="ANAL-1001",
+            recipient_name="Ariel Cole",
+            recipient_phone="+1 555 010 2222",
+            origin="Seattle, WA",
+            destination="Portland, OR",
+            status="delivered",
+            carrier="FedEx",
+        )
+        Shipment.objects.create(
+            user=self.user,
+            tracking_number="ANAL-1002",
+            recipient_name="Blake Green",
+            recipient_phone="+1 555 010 3333",
+            origin="Boston, MA",
+            destination="New York, NY",
+            status="failed",
+            carrier="DHL",
+        )
+        Shipment.objects.create(
+            user=self.user,
+            tracking_number="ANAL-1003",
+            recipient_name="Casey Wells",
+            recipient_phone="+1 555 010 4444",
+            origin="Chicago, IL",
+            destination="Austin, TX",
+            status="in_transit",
+            carrier="UPS",
+        )
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Route performance")
+        self.assertContains(response, "Carrier performance")
+        self.assertContains(response, "Immediate follow-up")
+        self.assertContains(response, "Delivery success")
+        self.assertContains(response, "50.0%")
+
+    @override_settings(
+        STORAGES={
+            "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+            "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+        }
+    )
     def test_general_settings_and_webhook_preferences_persist(self):
         self.client.force_login(self.user)
         response = self.client.post(
