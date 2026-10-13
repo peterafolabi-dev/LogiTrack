@@ -212,6 +212,11 @@ class ShipmentForm(forms.ModelForm):
             ("DHL", "DHL"),
         ]
     )
+    dispatch_priority = forms.ChoiceField(
+        choices=[("standard", "Standard"), ("priority", "Priority"), ("rush", "Rush")],
+        required=False,
+        initial="standard",
+    )
 
     class Meta:
         model = Shipment
@@ -252,6 +257,11 @@ class ShipmentForm(forms.ModelForm):
         if current_carrier and current_carrier not in dict(carrier_choices):
             carrier_choices.append((current_carrier, current_carrier))
         self.fields["carrier"].choices = carrier_choices
+
+        if not self.data and not self.initial.get("dispatch_priority"):
+            self.initial["dispatch_priority"] = "standard"
+        if self.instance and not self.instance.dispatch_priority:
+            self.instance.dispatch_priority = "standard"
 
         for field in self.fields.values():
             field.widget.attrs.setdefault(
