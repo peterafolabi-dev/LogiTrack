@@ -57,6 +57,15 @@ For production email, configure `PUBLIC_BASE_URL` to the public HTTPS origin,
 the blueprint shares them with the Celery worker. Without SMTP credentials,
 delivery invitations cannot reach recipients.
 
+### Carrier sync & live tracking
+
+Carrier sync is configured through the workspace settings page and supports FedEx,
+UPS, and DHL provider keys. Add credentials to `.env` for `FEDEX_API_KEY`,
+`UPS_API_KEY`, and/or `DHL_API_KEY` to enable live tracking pulls. If these API
+keys are not configured, LogiTrack automatically falls back to a deterministic
+status model so the dashboard and sync workflow remain operational in local or
+staging environments.
+
 ### Media storage
 
 Local development uses `MEDIA_ROOT` when `DEBUG=1` and `USE_S3=0`. Production
