@@ -12,6 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .models import DeliveryPreferenceRequest, Shipment, ShipmentImportBatch
+from .services.carriers import CarrierSyncService
 
 
 class ShipmentWorkflowTests(TestCase):
@@ -81,6 +82,33 @@ class ShipmentWorkflowTests(TestCase):
 
         with self.assertRaises(Exception):
             shipment.transition_to("delivered", location="Final stop", note="Not allowed yet")
+
+    def test_carrier_sync_service_updates_tracking_status(self):
+        business = self.user.profile.get_or_create_business()
+        business.carrier_provider = "fedex"
+        business.carrier_sync_enabled = True
+        business.save()
+
+        shipment = Shipment.objects.create(
+            user=self.user,
+            business=business,
+            tracking_number="FX-TRACK-001",
+            carrier_tracking_number="FX-TRACK-001",
+            recipient_name="Ava Smith",
+            recipient_phone="+1 555 123 4567",
+            origin="Seattle, WA",
+            destination="Denver, CO",
+            description="Sample parcel",
+        )
+
+        result = shipment.sync_carrier_status()
+
+        self.assertTrue(result["updated"])
+        self.assertIn(result["carrier_status"], {"picked_up", "in_transit", "out_for_delivery", "delivered"})
+        shipment.refresh_from_db()
+        self.assertIn(shipment.carrier_status, {"picked_up", "in_transit", "out_for_delivery", "delivered"})
+        self.assertIsNotNone(shipment.carrier_last_sync_at)
+        self.assertEqual(CarrierSyncService.provider_key(business.carrier_provider), "fedex")
 
     def test_terminal_status_cannot_transition(self):
         shipment = Shipment.objects.create(

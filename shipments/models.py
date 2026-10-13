@@ -129,6 +129,9 @@ class Shipment(models.Model):
     origin = models.CharField(max_length=160)
     destination = models.CharField(max_length=160)
     carrier = models.CharField(max_length=80, default="In-house fleet")
+    carrier_tracking_number = models.CharField(max_length=80, blank=True, default="")
+    carrier_status = models.CharField(max_length=30, choices=STATUS_CHOICES, default="pending")
+    carrier_last_sync_at = models.DateTimeField(null=True, blank=True)
     route_code = models.CharField(max_length=32, blank=True, default="")
     driver_name = models.CharField(max_length=120, blank=True, default="")
     dispatch_priority = models.CharField(
@@ -230,12 +233,19 @@ class Shipment(models.Model):
             self.tracking_number = self.generate_unique_tracking_number()
         if not self.delivery_pin:
             self.set_delivery_pin()
+        if not self.carrier_status:
+            self.carrier_status = "pending"
         if not self.business_id and self.user_id:
             profile = getattr(self.user, "profile", None)
             if profile:
                 self.business = profile.get_or_create_business()
         self.full_clean()
         return super().save(*args, **kwargs)
+
+    def sync_carrier_status(self):
+        from .services.carriers import CarrierSyncService
+
+        return CarrierSyncService.sync_shipment(self)
 
     def transition_to(
         self,

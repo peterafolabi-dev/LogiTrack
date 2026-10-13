@@ -137,6 +137,7 @@ def dashboard(request):
         .order_by("-total")[:5]
     )
     route_coverage = round((queryset.exclude(route_code="").count() / max(status_counts.get("all", 0), 1)) * 100, 1) if status_counts.get("all", 0) else 0
+    carrier_sync_count = queryset.exclude(carrier_tracking_number="").filter(business__carrier_sync_enabled=True).count()
     sla_risk_count = queryset.filter(
         status__in=["pending", "picked_up", "in_transit", "out_for_delivery"],
         sla_due_at__lt=timezone.now() + timezone.timedelta(hours=2),
@@ -163,6 +164,7 @@ def dashboard(request):
             "carrier_summary": carrier_summary,
             "route_summary": route_summary,
             "route_coverage": route_coverage,
+            "carrier_sync_count": carrier_sync_count,
             "sla_risk_count": sla_risk_count,
             "alert_shipments": alert_shipments,
         },
