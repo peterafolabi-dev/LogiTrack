@@ -51,6 +51,14 @@ class Business(models.Model):
     webhook_url = models.URLField(blank=True, default="")
     webhook_secret = models.CharField(max_length=64, blank=True)
     webhook_events = models.JSONField(default=list, blank=True)
+    carrier_provider = models.CharField(
+        max_length=20,
+        choices=[("manual", "Manual / In-house"), ("fedex", "FedEx"), ("ups", "UPS"), ("dhl", "DHL")],
+        default="manual",
+    )
+    carrier_api_key = models.CharField(max_length=255, blank=True, default="")
+    carrier_account_number = models.CharField(max_length=80, blank=True, default="")
+    carrier_sync_enabled = models.BooleanField(default=False)
     email_notifications_enabled = models.BooleanField(default=True)
     sms_notifications_enabled = models.BooleanField(default=False)
     notify_on_status_change = models.BooleanField(default=True)

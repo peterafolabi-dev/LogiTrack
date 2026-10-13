@@ -93,6 +93,18 @@ class ProfileSettingsForm(forms.ModelForm):
     )
     distance_unit = forms.ChoiceField(choices=[("miles", "Miles (Imperial)"), ("kilometers", "Kilometers (Metric)")])
     currency = forms.ChoiceField(choices=[("USD", "USD — US Dollar"), ("EUR", "EUR — Euro"), ("GBP", "GBP — Pound Sterling")])
+    carrier_provider = forms.ChoiceField(
+        choices=[
+            ("manual", "Manual / In-house"),
+            ("fedex", "FedEx"),
+            ("ups", "UPS"),
+            ("dhl", "DHL"),
+        ],
+        required=False,
+    )
+    carrier_account_number = forms.CharField(required=False, max_length=80, strip=True)
+    carrier_api_key = forms.CharField(required=False, max_length=255, strip=True)
+    carrier_sync_enabled = forms.BooleanField(required=False)
     webhook_events = forms.MultipleChoiceField(
         required=False,
         choices=[
@@ -124,6 +136,10 @@ class ProfileSettingsForm(forms.ModelForm):
                 self.initial["webhook_events"] = business.webhook_events or self.instance.webhook_events
                 self.initial["webhook_secret"] = business.webhook_secret or self.instance.webhook_secret
                 self.initial["webhook_url"] = business.webhook_url or self.instance.webhook_url
+                self.initial["carrier_provider"] = business.carrier_provider
+                self.initial["carrier_account_number"] = business.carrier_account_number
+                self.initial["carrier_api_key"] = business.carrier_api_key
+                self.initial["carrier_sync_enabled"] = business.carrier_sync_enabled
 
     def save(self, commit=True):
         profile = super().save(commit=False)
@@ -132,6 +148,10 @@ class ProfileSettingsForm(forms.ModelForm):
         business.name = profile.business_name
         business.webhook_url = profile.webhook_url
         business.webhook_events = profile.webhook_events
+        business.carrier_provider = self.cleaned_data.get("carrier_provider") or business.carrier_provider or "manual"
+        business.carrier_account_number = self.cleaned_data.get("carrier_account_number", "")
+        business.carrier_api_key = self.cleaned_data.get("carrier_api_key", "")
+        business.carrier_sync_enabled = bool(self.cleaned_data.get("carrier_sync_enabled"))
         business.save()
         if commit:
             profile.save()

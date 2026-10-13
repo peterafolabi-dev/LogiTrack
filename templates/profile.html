@@ -51,6 +51,14 @@
                 <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">Support &amp; dispatch email</label>
                 <input readonly value="{{ request.user.email|default:'No account email configured' }}" class="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-xs text-zinc-500" />
               </div>
+              <div>
+                <label for="{{ settings_form.carrier_provider.id_for_label }}" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">Primary carrier provider</label>
+                <select id="{{ settings_form.carrier_provider.id_for_label }}" name="carrier_provider" class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-xs outline-none transition duration-200 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900">
+                  {% for value,label in settings_form.carrier_provider.field.choices %}
+                    <option value="{{ value }}" {% if settings_form.carrier_provider.value == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
             </div>
           </section>
           <section class="border-t border-zinc-200 p-5 sm:p-6">
@@ -59,6 +67,28 @@
               <div><label for="{{ settings_form.timezone.id_for_label }}" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">Operational timezone</label><select id="{{ settings_form.timezone.id_for_label }}" name="timezone" class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-xs outline-none transition duration-200 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900">{% for value,label in settings_form.timezone.field.choices %}<option value="{{ value }}" {% if settings_form.timezone.value == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
               <div><label for="{{ settings_form.distance_unit.id_for_label }}" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">Distance metric</label><select id="{{ settings_form.distance_unit.id_for_label }}" name="distance_unit" class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-xs outline-none transition duration-200 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900">{% for value,label in settings_form.distance_unit.field.choices %}<option value="{{ value }}" {% if settings_form.distance_unit.value == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
               <div><label for="{{ settings_form.currency.id_for_label }}" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">Default currency</label><select id="{{ settings_form.currency.id_for_label }}" name="currency" class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-xs outline-none transition duration-200 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900">{% for value,label in settings_form.currency.field.choices %}<option value="{{ value }}" {% if settings_form.currency.value == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+            </div>
+            <div class="mt-5 rounded-xl border border-zinc-200 bg-zinc-50/80 p-4">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-600">Carrier sync</h3>
+                  <p class="mt-1 text-[10px] text-zinc-500">Enable automatic provider status syncs for in-flight shipments.</p>
+                </div>
+                <label class="inline-flex items-center gap-2 text-[10px] text-zinc-600">
+                  <input type="checkbox" name="carrier_sync_enabled" {% if business.carrier_sync_enabled %}checked{% endif %} class="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500" />
+                  Enabled
+                </label>
+              </div>
+              <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label for="{{ settings_form.carrier_account_number.id_for_label }}" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">Carrier account number</label>
+                  <input id="{{ settings_form.carrier_account_number.id_for_label }}" name="carrier_account_number" value="{{ settings_form.carrier_account_number.value|default:'' }}" placeholder="123456789" class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-xs outline-none transition duration-200 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900" />
+                </div>
+                <div>
+                  <label for="{{ settings_form.carrier_api_key.id_for_label }}" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">Carrier API key</label>
+                  <input id="{{ settings_form.carrier_api_key.id_for_label }}" name="carrier_api_key" value="{{ settings_form.carrier_api_key.value|default:'' }}" placeholder="sk_live_..." class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-xs outline-none transition duration-200 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900" />
+                </div>
+              </div>
             </div>
           </section>
           <footer class="sticky bottom-0 flex items-center justify-between gap-3 border-t border-zinc-200 bg-white/95 px-5 py-3 backdrop-blur sm:px-6">
