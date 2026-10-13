@@ -129,6 +129,16 @@ class Shipment(models.Model):
     origin = models.CharField(max_length=160)
     destination = models.CharField(max_length=160)
     carrier = models.CharField(max_length=80, default="In-house fleet")
+    route_code = models.CharField(max_length=32, blank=True, default="")
+    driver_name = models.CharField(max_length=120, blank=True, default="")
+    dispatch_priority = models.CharField(
+        max_length=18,
+        choices=[("standard", "Standard"), ("priority", "Priority"), ("rush", "Rush")],
+        default="standard",
+    )
+    dispatch_window_start = models.DateTimeField(null=True, blank=True)
+    dispatch_window_end = models.DateTimeField(null=True, blank=True)
+    sla_due_at = models.DateTimeField(null=True, blank=True)
     estimated_delivery = models.DateTimeField(null=True, blank=True)
     description = models.TextField(blank=True)
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default="pending")

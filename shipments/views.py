@@ -125,6 +125,23 @@ def dashboard(request):
     for carrier in carrier_summary:
         carrier["share_pct"] = round((carrier["total"] / max(status_counts.get("all", 0), 1)) * 100, 0) if status_counts.get("all", 0) else 0
 
+    route_summary = list(
+        queryset.exclude(route_code="")
+        .values("route_code")
+        .annotate(
+            total=Count("id"),
+            in_progress=Count("id", filter=Q(status__in=["picked_up", "in_transit", "out_for_delivery"])),
+            delivered=Count("id", filter=Q(status="delivered")),
+            failed=Count("id", filter=Q(status="failed")),
+        )
+        .order_by("-total")[:5]
+    )
+    route_coverage = round((queryset.exclude(route_code="").count() / max(status_counts.get("all", 0), 1)) * 100, 1) if status_counts.get("all", 0) else 0
+    sla_risk_count = queryset.filter(
+        status__in=["pending", "picked_up", "in_transit", "out_for_delivery"],
+        sla_due_at__lt=timezone.now() + timezone.timedelta(hours=2),
+    ).count()
+
     alert_shipments = list(
         queryset.filter(status__in=["failed", "out_for_delivery"]).order_by("-updated_at")[:5]
     )
@@ -144,6 +161,9 @@ def dashboard(request):
             "delivery_success_rate": delivery_success_rate,
             "avg_transit_days": avg_transit_days,
             "carrier_summary": carrier_summary,
+            "route_summary": route_summary,
+            "route_coverage": route_coverage,
+            "sla_risk_count": sla_risk_count,
             "alert_shipments": alert_shipments,
         },
     )
