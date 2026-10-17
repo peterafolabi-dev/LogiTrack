@@ -52,6 +52,17 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('[data-dismiss-toast]').forEach((button) => {
     button.addEventListener('click', () => button.closest('[data-toast]')?.remove());
   });
+
+  document.querySelectorAll('[data-loading-form]').forEach((form) => {
+    form.addEventListener('submit', () => {
+      const button = form.querySelector('button[type="submit"], button:not([type])');
+      if (!button || button.disabled) return;
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      form.setAttribute('aria-busy', 'true');
+      button.textContent = form.dataset.loadingText || 'Working…';
+    });
+  });
   document.querySelectorAll('[data-toast]').forEach((toast) => {
     window.setTimeout(() => {
       toast.classList.add('toast-dismiss');

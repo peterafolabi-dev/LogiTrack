@@ -2,7 +2,7 @@
 
 {% block title %}{% if editing %}Edit Consignment{% else %}New Consignment{% endif %} | LogiTrack{% endblock %}
 {% block content %}
-<form id="consignment-form" method="post" data-consignment-preview class="space-y-6">
+<form id="consignment-form" method="post" data-consignment-preview data-loading-form data-loading-text="Saving shipment…" class="space-y-6">
   {% csrf_token %}
   <header class="flex flex-col justify-between gap-4 border-b border-zinc-200 pb-5 lg:flex-row lg:items-end">
     <div>

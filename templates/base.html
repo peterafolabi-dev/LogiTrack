@@ -10,6 +10,7 @@
     <script src="{% static 'js/app.js' %}" defer></script>
   </head>
   <body class="min-h-screen bg-(--bg) text-(--text) antialiased">
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-zinc-900 focus:shadow-xl">Skip to main content</a>
     <div class="route-pattern min-h-screen bg-[rgba(255,255,255,0.02)]">
       {% block site_header %}
       <header class="mx-auto max-w-7xl px-4 pt-4 sm:px-6 sm:pt-6 lg:px-8">
@@ -51,7 +52,7 @@
       </header>
       {% endblock site_header %}
 
-      <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main id="main-content" tabindex="-1" class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <nav aria-label="Breadcrumb" class="mb-5 text-[11px] text-zinc-500"><a href="{% url 'landing' %}" class="hover:text-emerald-700">Home</a><span aria-hidden="true" class="px-2">/</span><span aria-current="page" class="font-medium text-zinc-700">{{ shared_page_label }}</span></nav>
         {% if messages %}
           <div class="fixed right-4 top-4 z-50 w-[min(24rem,calc(100vw-2rem))] space-y-2">
