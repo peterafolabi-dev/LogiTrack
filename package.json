@@ -2,10 +2,12 @@
   "name": "logitrack",
   "private": true,
   "scripts": {
-    "build:css": "npx @tailwindcss/cli -i ./static/src/input.css -o ./static/css/styles.css --minify"
+    "build:css": "npx @tailwindcss/cli -i ./static/src/input.css -o ./static/css/styles.css --minify",
+    "build:motion": "esbuild ./static/src/landing-motion.jsx --bundle --minify --format=iife --target=es2020 --outfile=./static/js/landing-motion.js"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.1.11",
+    "esbuild": "^0.28.2",
     "tailwindcss": "^4.1.11"
   },
   "dependencies": {

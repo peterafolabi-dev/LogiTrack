@@ -1,8 +1,10 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}LogiTrack | Fleet telemetry, in real time{% endblock %}
 
 {% block site_header %}{% endblock site_header %}
+{% block extra_scripts %}<script src="{% static 'js/landing-motion.js' %}" defer></script>{% endblock %}
 
 {% block content %}
 <div class="-mx-4 -my-8 min-h-screen overflow-x-clip bg-[#090A0F] text-slate-100 sm:-mx-6 lg:-mx-8">
@@ -13,11 +15,11 @@
       <div class="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-x-8 gap-y-2 px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.12em] text-slate-400 sm:px-8 lg:px-12">
         <span class="flex items-center gap-2 text-emerald-300"><span class="status-led"></span> Live network</span>
         <p class="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span class="text-slate-200">42,810</span> active nodes in transit
+          <span class="text-slate-200 landing-typing-number" data-motion-stat data-value="42810" data-format="integer">42,810</span> active nodes in transit
           <span class="hidden text-slate-700 sm:inline">/</span>
-          <span class="text-slate-200">99.98%</span> GPS sync
+          <span class="text-slate-200 landing-typing-number" data-motion-stat data-value="99.98" data-decimals="2" data-suffix="%">99.98%</span> GPS sync
           <span class="hidden text-slate-700 sm:inline">/</span>
-          avg latency <span class="text-emerald-300">14ms</span>
+          avg latency <span class="text-emerald-300 landing-typing-number" data-motion-stat data-value="14" data-suffix="ms">14ms</span>
         </p>
         <span class="hidden items-center gap-2 md:flex"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> All systems operational</span>
       </div>
@@ -101,9 +103,9 @@
         <div class="mt-4 flex items-center gap-2 font-mono text-[10px] text-slate-600"><span class="rounded border border-white/[0.08] px-1.5 py-0.5">⌘ K</span> <span>to focus tracking</span><span class="mx-1 text-slate-700">·</span><span>Works with any carrier</span></div>
 
         <div class="mt-12 grid max-w-2xl grid-cols-3 divide-x divide-white/[0.08] border-t border-white/[0.08] pt-5">
-          <div class="pr-3"><p class="font-mono text-xl font-semibold tracking-tight text-white sm:text-2xl">14<span class="text-emerald-400">ms</span></p><p class="mt-1 text-[10px] text-slate-500 sm:text-xs">NETWORK LATENCY</p></div>
-          <div class="px-3 sm:px-5"><p class="font-mono text-xl font-semibold tracking-tight text-white sm:text-2xl">99.98<span class="text-emerald-400">%</span></p><p class="mt-1 text-[10px] text-slate-500 sm:text-xs">GPS UPTIME</p></div>
-          <div class="pl-3 sm:pl-5"><p class="font-mono text-xl font-semibold tracking-tight text-white sm:text-2xl">24<span class="text-emerald-400">/7</span></p><p class="mt-1 text-[10px] text-slate-500 sm:text-xs">FLEET VISIBILITY</p></div>
+          <div class="pr-3"><p class="font-mono text-xl font-semibold tracking-tight text-white sm:text-2xl"><span class="landing-typing-number" data-motion-stat data-value="14" data-suffix="ms">14ms</span></p><p class="mt-1 text-[10px] text-slate-500 sm:text-xs">NETWORK LATENCY</p></div>
+          <div class="px-3 sm:px-5"><p class="font-mono text-xl font-semibold tracking-tight text-white sm:text-2xl"><span class="landing-typing-number" data-motion-stat data-value="99.98" data-decimals="2" data-suffix="%">99.98%</span></p><p class="mt-1 text-[10px] text-slate-500 sm:text-xs">GPS UPTIME</p></div>
+          <div class="pl-3 sm:pl-5"><p class="font-mono text-xl font-semibold tracking-tight text-white sm:text-2xl"><span class="landing-typing-number" data-motion-stat data-value="24" data-suffix="/7">24/7</span></p><p class="mt-1 text-[10px] text-slate-500 sm:text-xs">FLEET VISIBILITY</p></div>
         </div>
       </section>
 
@@ -143,7 +145,7 @@
             <span class="absolute bottom-[17%] left-[9%] rounded border border-white/[0.08] bg-[#090d13]/85 px-2 py-1 font-mono text-[9px] text-slate-300">SEATTLE <span class="text-slate-600">· SEA</span></span>
             <span class="absolute right-[7%] top-[18%] rounded border border-emerald-300/15 bg-[#090d13]/90 px-2 py-1 font-mono text-[9px] text-emerald-200">DENVER <span class="text-emerald-500/60">· DEN</span></span>
             <span class="absolute left-[41%] top-[47%] hidden rounded border border-white/[0.07] bg-[#090d13]/80 px-1.5 py-1 font-mono text-[8px] text-slate-500 sm:block">SALT LAKE CITY</span>
-            <div class="absolute bottom-3 right-3 font-mono text-[8px] text-slate-600">ROUTE VECTOR // 1,329 MI</div>
+            <div class="absolute bottom-3 right-3 font-mono text-[8px] text-slate-600">ROUTE VECTOR // <span class="landing-typing-number" data-motion-stat data-value="1329" data-format="integer">1,329</span> MI</div>
           </div>
 
           <div class="relative mt-3 grid gap-3 sm:grid-cols-[1.25fr_0.75fr]">
