@@ -18,6 +18,9 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
+from django.db import connection
+from django.conf import settings
+import redis
 
 from .forms import (
     DeliveryPreferenceForm,
@@ -41,6 +44,22 @@ from .services.labels import generate_thermal_label_pdf
 
 def landing(request):
     return render(request, "landing.html")
+
+
+def system_status(request):
+    """Show a small, user-safe status page for the app's core dependencies."""
+    services = {"Application": True, "Database": False, "Background queue": False}
+    try:
+        connection.ensure_connection()
+        services["Database"] = True
+    except Exception:
+        pass
+    try:
+        redis.Redis.from_url(settings.REDIS_URL, socket_connect_timeout=1, socket_timeout=1).ping()
+        services["Background queue"] = True
+    except Exception:
+        pass
+    return render(request, "status.html", {"services": services, "all_operational": all(services.values())})
 
 
 def signup_view(request):
@@ -196,6 +215,7 @@ def shipments_list(request):
     driver_name = request.GET.get("driver", "").strip()
     dispatch_priority = request.GET.get("priority", "").strip()
     date_range = request.GET.get("range", "").strip()
+    attention = request.GET.get("attention", "").strip()
     if query:
         queryset = queryset.filter(
             Q(recipient_name__icontains=query)
@@ -218,6 +238,11 @@ def shipments_list(request):
         queryset = queryset.filter(created_at__gte=timezone.now() - timezone.timedelta(hours=24))
     elif date_range == "7d":
         queryset = queryset.filter(created_at__gte=timezone.now() - timezone.timedelta(days=7))
+    if attention == "sla_risk":
+        queryset = queryset.filter(
+            status__in=["pending", "picked_up", "in_transit", "out_for_delivery"],
+            sla_due_at__lt=timezone.now() + timezone.timedelta(hours=2),
+        )
 
     if request.GET.get("export") in {"csv", "json"}:
         rows = queryset.order_by("-created_at")
