@@ -17,6 +17,14 @@
     transform: translateY(0);
   }
 
+  .landing-hero-copy { transition-delay: 80ms; }
+  .landing-hero-map { transition-delay: 220ms; }
+  .route-flow { animation: route-flow 16s linear infinite; }
+
+  @keyframes route-flow {
+    to { stroke-dashoffset: -176; }
+  }
+
   .fade-in {
     opacity: 0;
     transform: translateY(10px);
@@ -217,7 +225,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .radar-ping, .pulse-checkpoint, .progress-fill,
-  .status-halo, .telemetry-frame, .map-pulse, .auth-spinner {
+  .status-halo, .telemetry-frame, .map-pulse, .auth-spinner, .route-flow {
     animation: none !important;
     transition: none !important;
     transform: none !important;
