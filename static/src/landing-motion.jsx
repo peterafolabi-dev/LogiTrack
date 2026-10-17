@@ -1,6 +1,38 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { LazyMotion, domAnimation, m, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
+import { LazyMotion, domAnimation, m, useMotionValueEvent, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
+
+function ScrollReveal({ target }) {
+  const targetRef = React.useMemo(() => ({ current: target }), [target]);
+  const reduceMotion = useReducedMotion();
+  const { scrollYProgress } = useScroll({
+    target: targetRef,
+    offset: ["start 0.92", "end 0.55"],
+  });
+  const progress = useSpring(scrollYProgress, { stiffness: 130, damping: 32, mass: 0.3 });
+
+  const updateTarget = (value) => {
+    if (reduceMotion) return;
+    const amount = Math.max(0, Math.min(1, value));
+    target.style.opacity = String(amount);
+    target.style.translate = `0 ${((1 - amount) * 16).toFixed(1)}px`;
+  };
+
+  React.useEffect(() => {
+    if (reduceMotion) return undefined;
+    target.style.willChange = "opacity, translate";
+    const frame = requestAnimationFrame(() => updateTarget(progress.get()));
+    return () => {
+      cancelAnimationFrame(frame);
+      target.style.removeProperty("opacity");
+      target.style.removeProperty("translate");
+      target.style.removeProperty("will-change");
+    };
+  }, [target, progress, reduceMotion]);
+
+  useMotionValueEvent(progress, "change", updateTarget);
+  return null;
+}
 
 function ScrollCharacter({ character, index, count, progress }) {
   const start = 0.04 + (index / count) * 0.78;
@@ -56,6 +88,30 @@ function mountLandingNumbers() {
     createRoot(element).render(<AnimatedNumber element={element} />);
     element.className = className;
   });
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const targets = [...document.querySelectorAll(
+    ".command-grid section:not(.animate-fade-up), .command-grid article, .command-grid [data-scroll-motion]",
+  )];
+  if (!targets.length) return;
+
+  targets.forEach((target) => {
+    target.style.opacity = "0";
+    target.style.translate = "0 16px";
+  });
+  const motionRoot = document.createElement("div");
+  motionRoot.setAttribute("aria-hidden", "true");
+  Object.assign(motionRoot.style, {
+    position: "fixed",
+    width: "0",
+    height: "0",
+    overflow: "hidden",
+    pointerEvents: "none",
+  });
+  document.body.appendChild(motionRoot);
+  createRoot(motionRoot).render(
+    <>{targets.map((target, index) => <ScrollReveal key={index} target={target} />)}</>,
+  );
 }
 
 if (document.readyState === "loading") {
