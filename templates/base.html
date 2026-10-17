@@ -41,6 +41,7 @@
                   </div>
                 </details>
                 <a href="{% url 'profile' %}" class="rounded-lg border border-(--line) px-2.5 py-2 hover:bg-black/5">{{ user.get_short_name|default:user.username }}</a>
+                <a href="{% url 'logout' %}" class="rounded-lg border border-(--line) px-2.5 py-2 text-zinc-600 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700">Log out</a>
               {% else %}
                 <a href="{% url 'public_tracking' %}" class="rounded-lg px-2.5 py-2 hover:bg-black/5">Track a shipment</a>
                 <a href="{% url 'system_status' %}" class="rounded-lg px-2.5 py-2 hover:bg-black/5">System status</a>
