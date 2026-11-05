@@ -13,7 +13,10 @@ load_dotenv(BASE_DIR := Path(__file__).resolve().parent.parent / ".env")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
+_demo_secret_file = BASE_DIR / ".demo-secret"  # written by the Vercel build step; never committed
+SECRET_KEY = os.environ.get("SECRET_KEY") or (
+    _demo_secret_file.read_text().strip() if _demo_secret_file.exists() else "dev-secret-key"
+)
 DEBUG = os.environ.get("DEBUG", "1") == "1"
 default_hosts = ["localhost", "127.0.0.1", "testserver", "[::1]"]
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", ",".join(default_hosts)).split(",") if os.environ.get("ALLOWED_HOSTS") else default_hosts

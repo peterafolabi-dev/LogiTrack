@@ -1,0 +1,3 @@
+{
+  "buildCommand": "python -c \"import secrets; open('.demo-secret','w').write(secrets.token_urlsafe(50))\" && python manage.py collectstatic --noinput"
+}
