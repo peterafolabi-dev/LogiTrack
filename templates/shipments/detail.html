@@ -321,7 +321,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (statusSelect) {
     statusSelect.addEventListener('change', updateSections);
-    updateSections();
   }
 
   // Geolocation API Integration
@@ -484,6 +483,10 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
   }
+
+  // Show the right section for the current status. This runs last because a shipment
+  // already marked "delivered" sizes the signature pad, which must exist by then.
+  updateSections();
 });
 </script>
 {% endblock %}
