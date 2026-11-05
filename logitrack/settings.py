@@ -18,6 +18,23 @@ DEBUG = os.environ.get("DEBUG", "1") == "1"
 default_hosts = ["localhost", "127.0.0.1", "testserver", "[::1]"]
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", ",".join(default_hosts)).split(",") if os.environ.get("ALLOWED_HOSTS") else default_hosts
 
+# Demo mode: a free, self-contained deployment (e.g. on Vercel) with no Postgres,
+# Redis or S3. The database lives in /tmp and is rebuilt with demo data on a cold
+# start, background jobs run inline, and uploads stay on local disk.
+ON_VERCEL = bool(os.environ.get("VERCEL"))
+DEMO_MODE = os.environ.get("DEMO_MODE", "1" if ON_VERCEL and not os.environ.get("DATABASE_URL") else "0") == "1"
+VERCEL_HOSTS = [h for h in (os.environ.get("VERCEL_URL", ""), os.environ.get("VERCEL_BRANCH_URL", ""),
+                            os.environ.get("VERCEL_PROJECT_PRODUCTION_URL", "")) if h]
+for _h in VERCEL_HOSTS:
+    if _h not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_h)
+if DEMO_MODE:
+    # Each serverless instance has its own /tmp database, so keep the session in a signed cookie.
+    SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
+CSRF_TRUSTED_ORIGINS = [f"https://{h}" for h in VERCEL_HOSTS] + [
+    o for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o
+]
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -60,7 +77,10 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "logitrack.wsgi.application"
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///" + str(BASE_DIR / "db.sqlite3"))
+DEMO_DB_PATH = Path(os.environ.get("DEMO_DB_PATH", "/tmp/logitrack-demo.sqlite3"))
+DATABASE_URL = os.environ.get("DATABASE_URL") or (
+    "sqlite:///" + str(DEMO_DB_PATH) if DEMO_MODE else "sqlite:///" + str(BASE_DIR / "db.sqlite3")
+)
 DATABASES = {"default": dj_database_url.parse(DATABASE_URL, conn_max_age=600)}
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -80,7 +100,7 @@ WHITENOISE_MANIFEST_STRICT = False
 
 # Media & Cloud Object Storage Configuration (AWS S3 & Cloudflare R2 compatibility)
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = Path("/tmp/logitrack-media") if DEMO_MODE else BASE_DIR / "media"
 
 USE_S3 = os.environ.get("USE_S3", "0") == "1" or bool(os.environ.get("AWS_STORAGE_BUCKET_NAME"))
 AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", "")
@@ -89,7 +109,7 @@ AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME", "")
 AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "auto")
 AWS_S3_ENDPOINT_URL = os.environ.get("AWS_S3_ENDPOINT_URL", "")
 
-if not DEBUG and not USE_S3:
+if not DEBUG and not USE_S3 and not DEMO_MODE:
     raise ImproperlyConfigured(
         "Production media storage must use S3-compatible object storage. "
         "Set USE_S3=1 and configure AWS_STORAGE_BUCKET_NAME."
@@ -152,7 +172,7 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60
-CELERY_TASK_ALWAYS_EAGER = IS_TESTING or (os.environ.get("CELERY_TASK_ALWAYS_EAGER", "0") == "1")
+CELERY_TASK_ALWAYS_EAGER = IS_TESTING or DEMO_MODE or (os.environ.get("CELERY_TASK_ALWAYS_EAGER", "0") == "1")
 CELERY_TASK_EAGER_PROPAGATES = True
 
 # Cache configuration (for django-ratelimit and general caching)
@@ -173,7 +193,9 @@ else:
 
 EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "hello@logitrack.local")
-PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "http://localhost:8000")
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL") or (
+    f"https://{os.environ['VERCEL_PROJECT_PRODUCTION_URL']}" if os.environ.get("VERCEL_PROJECT_PRODUCTION_URL") else "http://localhost:8000"
+)
 public_base_url_parts = urlsplit(PUBLIC_BASE_URL)
 if not DEBUG and (public_base_url_parts.scheme != "https" or not public_base_url_parts.netloc):
     raise ImproperlyConfigured("Production PUBLIC_BASE_URL must be an HTTPS origin.")

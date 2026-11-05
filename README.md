@@ -2,6 +2,11 @@
 
 LogiTrack is a premium shipment tracking platform for small delivery businesses.
 
+**Live demo:** [logitrack-demo.vercel.app](https://logitrack-demo.vercel.app). Sign in as `demo` / `demo12345`.
+The demo runs in *demo mode*: no Postgres, Redis or S3 needed, background jobs run inline, and the
+data is rebuilt from `seed_demo` whenever the server cold-starts. A full production setup
+(Postgres, Redis worker, S3/R2 storage) is described in `render.yaml`.
+
 ## Local development
 
 1. Create and activate a virtual environment.

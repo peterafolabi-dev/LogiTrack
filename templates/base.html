@@ -11,6 +11,11 @@
     {% block extra_scripts %}{% endblock %}
   </head>
   <body class="min-h-screen bg-(--bg) text-(--text) antialiased">
+    {% if demo_mode %}
+      <div role="note" style="background:#111827;color:#f9fafb;font-size:13px;text-align:center;padding:8px 12px">
+        Live demo · sign in as <b>demo</b> / <b>demo12345</b> · data resets regularly, so feel free to try anything.
+      </div>
+    {% endif %}
     <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-zinc-900 focus:shadow-xl">Skip to main content</a>
     <div class="route-pattern min-h-screen bg-[rgba(255,255,255,0.02)]">
       {% block site_header %}

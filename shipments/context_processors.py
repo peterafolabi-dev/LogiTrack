@@ -47,4 +47,7 @@ def shared_navigation(request):
                 ),
             )
             alert_counts = {"failed": counts["failed"], "due": counts["due"], "total": counts["failed"] + counts["due"]}
-    return {"shared_page_label": label, "shared_alert_counts": alert_counts, "shared_business_name": business_name}
+    from django.conf import settings
+
+    return {"shared_page_label": label, "shared_alert_counts": alert_counts, "shared_business_name": business_name,
+            "demo_mode": getattr(settings, "DEMO_MODE", False)}
